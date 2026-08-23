@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strumenti Sala Sciroppi</title>
+<style>
+:root{--bg:#e8eaed;--surface:#fff;--surface2:#f4f6f8;--ink:#131a21;--muted:#5d6a76;
+  --line:#ccd3da;--line2:#e3e8ec;--head:#1c2a35;--r:3px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--head);color:#eef2f5;padding:14px 18px;border-bottom:3px solid #0e161d}
+header b{display:block;font-size:16px;letter-spacing:.03em}
+header span{font-size:11px;color:#93a6b5;letter-spacing:.08em;text-transform:uppercase}
+main{max-width:900px;margin:0 auto;padding:22px 18px 40px}
+h2{font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+  border-bottom:1px solid var(--line);padding-bottom:6px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+a.card{display:block;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:13px 15px;text-decoration:none;color:inherit;border-left:5px solid var(--head)}
+a.card:hover{border-color:var(--head);box-shadow:0 0 0 1px var(--head)}
+a.card h3{margin:0 0 4px;font-size:15px;font-weight:600}
+a.card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45}
+a.card .tag{display:inline-block;margin-top:8px;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;background:var(--surface2);border:1px solid var(--line2);
+  border-radius:2px;padding:2px 7px;color:var(--muted)}
+.note{margin-top:22px;background:var(--surface2);border:1px solid var(--line2);border-radius:var(--r);
+  padding:11px 13px;font-size:12.5px;color:var(--muted);line-height:1.55}
+.note b{color:var(--ink)}
+footer{max-width:900px;margin:0 auto;padding:0 18px 30px;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <b>Strumenti Sala Sciroppi</b>
+  <span>Raccolta applicazioni di reparto</span>
+</header>
+
+<main>
+  <h2>Applicazioni</h2>
+  <div class="grid">
+
+    <a class="card" href="sanificazioni/">
+      <h3>Registro sanificazioni</h3>
+      <p>Stato di ogni attrezzatura, storico dei cicli e registrazione dei turni.
+         Legge e riscrive il file Excel del registro.</p>
+      <span class="tag">Excel · lettura e scrittura</span>
+    </a>
+
+    <a class="card" href="sop-manager/">
+      <h3>Gestione procedure</h3>
+      <p>Procedure operative consultabili in reparto, con accesso differenziato
+         fra operatore e amministratore.</p>
+      <span class="tag">Consultazione</span>
+    </a>
+
+    <a class="card" href="simulazione/">
+      <h3>Simulazione impianto</h3>
+      <p>Modello interattivo del reparto con agenti multipli, per prove
+         di flusso e formazione.</p>
+      <span class="tag">Formazione</span>
+    </a>
+
+  </div>
+
+  <div class="note">
+    <b>Nessun dato viene caricato su questo sito.</b> Le applicazioni girano nel browser
+    e leggono i file dal computer su cui sono aperte. I file di lavoro non vanno mai
+    caricati in questo repository.
+  </div>
+</main>
+
+<footer>Aggiornato al 23/08/2026</footer>
+
+</body>
+</html>
