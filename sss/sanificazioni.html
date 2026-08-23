@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SR16 P07 · Sanificazioni Sala Sciroppi</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#e8eaed; --surface:#fff; --surface2:#f4f6f8;
+  --ink:#131a21; --muted:#5d6a76; --line:#ccd3da; --line2:#e3e8ec;
+  --head:#1c2a35; --head2:#283a48;
+  --alert:#c62828; --alert-bg:#fdeaea;
+  --warn:#8a5a00;
+  --ok:#1b6b3a;
+  --cip1:#00B050; --cip2:#FFFF00; --cip3:#00B0F0; --cip4:#7030A0; --cip5:#FFC000;
+  --r:3px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background:var(--bg); color:var(--ink);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-variant-numeric:tabular-nums;
+  display:flex; flex-direction:column;
+}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid #0b64c0;outline-offset:1px}
+
+/* ---------- topbar ---------- */
+.topbar{background:var(--head);color:#eef2f5;display:flex;align-items:center;gap:14px;
+  padding:8px 14px;flex-wrap:wrap;border-bottom:3px solid #0e161d}
+.brand{display:flex;flex-direction:column;line-height:1.15;margin-right:6px}
+.brand b{font-size:14px;letter-spacing:.03em}
+.brand span{font-size:11px;color:#93a6b5;letter-spacing:.08em;text-transform:uppercase}
+.tabs{display:flex;gap:2px;margin-left:auto}
+.tab{background:transparent;border:1px solid transparent;color:#b9c8d4;padding:6px 14px;border-radius:var(--r);font-size:13px}
+.tab:hover{color:#fff;background:#ffffff14}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--head);border-color:var(--surface);font-weight:600}
+.btn{background:#37536a;border:1px solid #4c6d88;color:#fff;padding:6px 12px;border-radius:var(--r);font-size:13px}
+.btn:hover{background:#436079}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.btn.primary{background:#0f7b46;border-color:#149054}
+.btn.primary:hover{background:#12ae62}
+.filechip{font-size:12px;color:#9fb2c1;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dirty{background:var(--alert);color:#fff;border-radius:10px;padding:1px 9px;font-size:12px;font-weight:600}
+
+/* ---------- layout ---------- */
+main{flex:1;overflow:auto;padding:14px}
+.panel{display:none}
+.panel.on{display:block}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r);padding:9px 12px;margin-bottom:12px}
+.bar label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+input[type=text],input[type=date],input[type=number],select{
+  font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:var(--r);background:#fff;color:var(--ink)}
+.sep{width:1px;align-self:stretch;background:var(--line2)}
+.tip{position:relative;display:inline-flex;align-items:center;gap:7px}
+.tip::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);left:0;z-index:80;
+  width:max-content;max-width:320px;background:var(--head);color:#eef2f5;font-size:11.5px;font-weight:400;
+  line-height:1.45;text-transform:none;letter-spacing:0;padding:8px 10px;border-radius:3px;
+  box-shadow:0 5px 16px #00000038;opacity:0;visibility:hidden;
+  transition:opacity .12s .4s,visibility 0s .4s;pointer-events:none}
+.tip::before{content:"";position:absolute;top:calc(100% + 3px);left:14px;z-index:81;
+  border:5px solid transparent;border-bottom-color:var(--head);opacity:0;visibility:hidden;
+  transition:opacity .12s .4s,visibility 0s .4s;pointer-events:none}
+.tip:hover::after,.tip:hover::before{opacity:1;visibility:visible}
+.tip.r::after{left:auto;right:0}
+.tip.r::before{left:auto;right:14px}
+.tip b{font-weight:600;color:#fff}
+.seg2{display:flex;gap:2px;border:1px solid var(--line);border-radius:var(--r);padding:2px;background:var(--surface2)}
+.seg2 button{background:transparent;border:0;color:var(--muted);font-size:12.5px;padding:4px 10px;border-radius:2px}
+.seg2 button:hover{background:#00000010;color:var(--ink)}
+.seg2 button[aria-pressed="true"]{background:var(--head);color:#fff;font-weight:600}
+
+/* ---------- legenda ---------- */
+.legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.lg{display:flex;align-items:center;gap:6px;font-size:12px;border:1px solid var(--line);
+  border-radius:var(--r);padding:3px 8px 3px 3px;background:#fff}
+.lgt{font-size:13px;font-weight:600;color:var(--ink)}
+.sw{width:20px;height:20px;border-radius:2px;display:grid;place-items:center;font-weight:700;font-size:12px;border:1px solid #00000026}
+
+/* ---------- muro stato ---------- */
+.grp{margin-bottom:18px}
+.grp h3{margin:0 0 8px;font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+  border-bottom:1px solid var(--line);padding-bottom:5px;display:flex;justify-content:space-between}
+.wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:8px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  display:grid;grid-template-columns:9px 1fr auto;overflow:hidden;min-height:82px}
+.tile .band{background:var(--line)}
+.tile .body{padding:7px 9px;min-width:0}
+.tile .nm{font-size:12.5px;font-weight:600;line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tile .meta{font-size:11px;color:#3d4750;font-weight:500;margin-top:3px}
+.tile .age{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:0 11px;border-left:1px solid var(--line2);background:var(--surface2);min-width:62px}
+.tile .age b{font-size:22px;line-height:1;font-weight:700}
+.tile .age span{font-size:10px;color:var(--muted);letter-spacing:.06em}
+.tile.over{border-color:var(--alert);box-shadow:inset 0 0 0 1px var(--alert)}
+.tile.over .age{background:var(--alert-bg)} .tile.over .age b{color:var(--alert)}
+.tile.warn .age b{color:var(--warn)}
+.tile .san{display:flex;align-items:center;gap:4px;margin-top:5px;padding:2px 6px;border-radius:2px;
+  background:var(--surface2);font-size:9.5px;font-weight:500;color:#3d4750;line-height:1.3}
+.tile .san b{font-size:11.5px;font-weight:700;flex:none}
+.tile .san .pill{font-size:10px;padding:1px 5px}
+.tile .san span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .san.over{background:var(--alert-bg);color:var(--alert)}
+.tile.never .age b{font-size:16px;color:var(--muted)}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:2px;border:1px solid #00000026}
+
+/* ---------- registro ---------- */
+.gridwrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:auto;max-height:calc(100vh - 205px)}
+table.reg{border-collapse:separate;border-spacing:0;font-size:12px}
+table.reg th,table.reg td{border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:0}
+table.reg thead th{position:sticky;top:0;z-index:3;background:var(--surface2);vertical-align:bottom}
+table.reg thead th.gh{z-index:4;height:52px;font-size:9.5px;line-height:11px;letter-spacing:.04em;
+  text-transform:uppercase;color:#fff;background:var(--head2);padding:3px 4px;text-align:left;
+  vertical-align:middle;white-space:normal;overflow-wrap:anywhere;hyphens:auto;position:sticky;top:0}
+table.reg thead th.gh>span{display:block;max-height:46px;overflow:hidden}
+table.reg thead tr.h2 th{top:52px}
+.vh{writing-mode:vertical-rl;transform:rotate(180deg);height:214px;width:24px;
+  font-weight:500;font-size:9.5px;line-height:11px;letter-spacing:-.01em;
+  padding:4px 0;white-space:normal;overflow-wrap:anywhere;hyphens:auto;overflow:hidden;
+  text-align:left;margin:0 auto}
+table.reg thead tr.h2 th:not(.stickA):not(.stickB){width:26px;min-width:26px;max-width:26px}
+.stickA{position:sticky;left:0;z-index:5;background:var(--surface2)}
+.stickB{position:sticky;left:86px;z-index:5;background:var(--surface2)}
+th.stickA,td.stickA{width:86px;min-width:86px;max-width:86px}
+th.stickB,td.stickB{width:34px;min-width:34px;max-width:34px}
+td.stickA,td.stickB{background:var(--surface);font-weight:600;padding:2px 5px;white-space:nowrap;font-size:11px}
+td.stickA{border-right:1px solid var(--line)}
+td.stickB{border-right:1px solid var(--line);text-align:center;color:var(--muted)}
+tr.d0 td.stickA,tr.d0 td.stickB{border-top:2px solid var(--line)}
+tr.today td.stickA{box-shadow:inset 3px 0 0 #0b64c0}
+td.cell{width:26px;min-width:26px;max-width:26px;text-align:center;font-weight:700;font-size:11px;cursor:pointer;height:22px}
+td.cell:hover{outline:2px solid #0b64c0;outline-offset:-2px}
+td.cell.edited{box-shadow:inset 0 0 0 2px #0b64c0}
+td.free{width:110px;min-width:110px;max-width:110px;padding:2px 5px;font-size:10px;cursor:text;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td.ctrl{width:26px;min-width:26px;max-width:26px;text-align:center;font-size:9px;cursor:pointer;overflow:hidden}
+.wknd td.stickA{color:#8a3a00}
+
+/* ---------- inserimento ---------- */
+.entry{display:grid;grid-template-columns:1fr 320px;gap:12px;align-items:start}
+@media(max-width:980px){.entry{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.card h3{margin:0 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.erow{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line2)}
+.erow:last-child{border-bottom:0}
+.erow .nm{flex:1;font-size:12.5px;min-width:0}
+.erow .last{font-size:11px;color:var(--muted);white-space:nowrap}
+.picker{display:flex;gap:2px}
+.pk{width:26px;height:24px;border:1px solid var(--line);background:#fff;border-radius:2px;font-weight:700;font-size:12px;color:#7c8791}
+.pk[aria-pressed="true"]{border-color:#0e161d;color:#000;box-shadow:0 0 0 1px #0e161d}
+.pk.x{color:#97a1aa;font-weight:400}
+.field{margin-bottom:9px}
+.field label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.field input,.field select,.field textarea{width:100%;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r)}
+.seg{display:flex;gap:2px}
+.seg button{flex:1;padding:6px;border:1px solid var(--line);background:#fff;border-radius:2px;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--head);color:#fff;border-color:var(--head)}
+
+/* ---------- vari ---------- */
+.drop{max-width:740px;margin:60px auto;background:var(--surface);border:2px dashed var(--line);
+  border-radius:6px;padding:38px;text-align:center}
+.drop h2{margin:0 0 6px;font-size:20px}
+.drop p{color:var(--muted);margin:0 0 18px;font-size:13px}
+.note{font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--line2);
+  border-radius:var(--r);padding:9px 11px;text-align:left;margin-top:16px}
+.note b{color:var(--ink)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--head);color:#fff;
+  padding:10px 18px;border-radius:var(--r);font-size:13px;z-index:99;box-shadow:0 6px 22px #0003}
+.tile{cursor:pointer}
+.tile:hover{border-color:var(--head2);box-shadow:0 0 0 1px var(--head2)}
+#hovl{position:fixed;inset:0;background:#0b1219b3;z-index:210;display:flex;align-items:flex-start;
+  justify-content:center;padding:52px 16px;overflow:auto}
+#hist{background:var(--surface);border:1px solid var(--line);border-radius:5px;width:100%;max-width:660px}
+#hist .hh{display:flex;align-items:center;gap:7px;padding:10px 13px;border-bottom:1px solid var(--line);
+  font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+#hist .hh .lbl{margin-left:0;text-transform:none;letter-spacing:0}
+#hist .hh .lbl:first-of-type{margin-left:auto}
+#hist .hh #hX{font-size:18px;padding:0 7px}
+.btn2{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:var(--r);
+  padding:4px 10px;font-size:12.5px}
+.btn2:hover:not([disabled]){background:var(--surface2)}
+.btn2[disabled]{opacity:.4;cursor:not-allowed}
+#hist .hr{display:flex;align-items:center;gap:10px;padding:7px 13px;border-top:1px solid var(--line2)}
+#hist .hr:first-of-type{border-top:0}
+#hist .w{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
+#hist .w b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hist .w span{font-size:11.5px;color:var(--muted)}
+#hist .vv{flex:none;display:flex;align-items:center;gap:6px}
+#hist .ar{color:var(--muted)}
+.hv{font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:2px;padding:1px 6px;
+  max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
+.hv.empty{font-weight:400;color:var(--muted);font-style:italic}
+#hist .tm{width:64px;flex:none;text-align:right;font-size:11.5px;color:var(--muted)}
+#hist .hf{padding:9px 13px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.45}
+#ovl{position:fixed;inset:0;background:#0b1219b3;z-index:200;display:flex;align-items:flex-start;
+  justify-content:center;padding:38px 16px;overflow:auto}
+#det{background:var(--surface);border:1px solid var(--line);border-radius:5px;width:100%;max-width:760px}
+#det .dh{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+#det .dh .bd{width:6px;align-self:stretch}
+#det .dh h2{margin:0;font-size:16px;font-weight:600}
+#det .dh p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+#det .x{margin-left:auto;background:transparent;border:0;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px}
+#det .x:hover{color:var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:12px 14px}
+.kpi{background:var(--surface2);border:1px solid var(--line2);border-radius:var(--r);padding:9px 11px}
+.kpi .lb{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.kpi .bg{font-size:24px;font-weight:700;line-height:1.1;margin:3px 0}
+.kpi .sm{font-size:11.5px;color:var(--muted)}
+.kpi.bad{background:var(--alert-bg);border-color:#f0c2c2}
+.kpi.bad .lb,.kpi.bad .bg,.kpi.bad .sm{color:var(--alert)}
+.distr{display:flex;height:18px;border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.dfil{display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line2)}
+.dfil button{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:var(--r);padding:4px 10px;font-size:12.5px}
+.dfil input[type=date]{font:inherit;font-size:12.5px;padding:3px 6px;border:1px solid var(--line);border-radius:var(--r)}
+.dfil button[aria-pressed="true"]{background:var(--head);color:#fff;border-color:var(--head);font-weight:600}
+.hrow{display:flex;align-items:center;gap:9px;padding:5px 14px;border-top:1px solid var(--line2);font-size:12px}
+.hrow:hover{background:var(--surface2)}
+.hrow .dt{width:88px;flex:none;font-weight:600}
+.hrow .tu{width:62px;flex:none;color:var(--muted)}
+.hrow .op{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hlist{max-height:46vh;overflow:auto}
+.hide{display:none!important}
+.count{font-size:11px;color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><b>Sanificazioni Sala Sciroppi</b><span>SR16 P07 · Sulmona</span></div>
+  <button class="btn" id="bLoad">Carica file .xlsx</button>
+  <button class="btn primary" id="bSave" disabled>Scarica file aggiornato</button>
+  <button class="btn" id="bHist" disabled title="Ultime modifiche · Ctrl+Z per annullare">Cronologia</button>
+  <span class="dirty hide" id="dirty">0 modifiche</span>
+  <span class="filechip" id="fchip"></span>
+  <span class="filechip" id="asave" style="color:#8fb3a0"></span>
+  <div class="tabs" id="tabs">
+    <button class="tab" data-p="stato" aria-selected="true">Stato attrezzature</button>
+    <button class="tab" data-p="reg" aria-selected="false">Registro</button>
+    <button class="tab" data-p="ins" aria-selected="false">Registrazione</button>
+  </div>
+</div>
+<input type="file" id="file" accept=".xlsx" class="hide">
+
+<main>
+
+  <!-- ====== SCHERMATA INIZIALE ====== -->
+  <div id="start" class="drop">
+    <h2>Apri il registro</h2>
+    <p>Trascina qui <code>SR16_P07_SANIFICAZIONI_SALA_SCIROPPI.xlsx</code> oppure premi il pulsante.</p>
+    <button class="btn primary" id="bLoad2">Scegli il file</button>
+    <div class="note">
+      <b>Come funziona.</b> L'app legge il foglio <i>sanificazioni</i> e scrive solo i valori delle celle
+      dentro il file originale: stili, colori, formattazione condizionale e gli altri fogli restano intatti.
+      A fine turno premi <b>Scarica file aggiornato</b> e sostituisci l'originale sul server.
+      Il browser non può salvare direttamente sul file di partenza.
+    </div>
+    <div class="note hide" id="restore" style="margin-top:10px"></div>
+    <div class="note" id="diag" style="margin-top:10px">Verifica della postazione in corso…</div>
+  </div>
+
+  <!-- ====== STATO ====== -->
+  <div class="panel" id="p-stato">
+    <div class="bar">
+      <span class="tip" data-tip="Filtra i riquadri per nome dell'attrezzatura o nome del reparto. Cerca dentro il testo, non solo all'inizio: scrivendo «pompa» trovi anche «tubazione carico pompa P05».">
+        <label for="fSearch">Cerca</label>
+        <input type="text" id="fSearch" placeholder="serbatoio, linea, pompa…" style="width:190px">
+      </span>
+      <div class="sep"></div>
+      <span class="tip" data-tip="Per reparto: i riquadri restano raggruppati come nel foglio Excel. Per giorni trascorsi: un elenco unico con in cima le attrezzature ferme da più tempo, utile per capire su cosa intervenire prima.">
+        <label for="fSort">Ordina</label>
+        <select id="fSort">
+          <option value="grp">per reparto</option>
+          <option value="age">per giorni trascorsi</option>
+        </select>
+      </span>
+      <div class="sep"></div>
+      <span class="tip" data-tip="Restringe l'elenco. Oltre soglia: ferme da più giorni della soglia rossa. Sanitizzante scaduto: hanno ricevuto acqua o soda di recente ma nessun ciclo 3, 4 o 5 entro la soglia. Mai sanificate: nessun ciclo di alcun tipo dal 2019.">
+        <label for="fOnly">Mostra</label>
+        <select id="fOnly">
+          <option value="all">tutte</option>
+          <option value="over">solo oltre soglia</option>
+          <option value="san">solo sanitizzante scaduto</option>
+          <option value="never">mai sanificate</option>
+        </select>
+      </span>
+      <div class="sep"></div>
+      <span class="tip" data-tip="Giorni dall'ultimo ciclo di qualsiasi tipo, oltre i quali il contatore dei giorni diventa ambra. È un preavviso: l'attrezzatura non è ancora fuori soglia.">
+        <label for="fWarn">Attenzione (gg)</label>
+        <input type="number" id="fWarn" value="7" min="1" style="width:58px">
+      </span>
+      <span class="tip" data-tip="Giorni dall'ultimo ciclo di qualsiasi tipo, oltre i quali il riquadro prende bordo e numero rossi. Alimenta il conteggio «fuori soglia» accanto al nome del reparto e il filtro «solo oltre soglia».">
+        <label for="fOver">Fuori soglia (gg)</label>
+        <input type="number" id="fOver" value="14" min="1" style="width:58px">
+      </span>
+      <span class="tip" data-tip="Giorni dall'ultimo ciclo che contiene sanitizzante, cioè 3, 4 o 5. Oltre questo valore la riga in basso del riquadro passa a fondo rosso. È il criterio che conta per l'HACCP: un CIP2 con sola soda pulisce ma non abbatte la carica microbica, quindi un serbatoio lavato ieri può essere verde sopra e rosso qui.">
+        <label for="fSan">Sanitizz. (gg)</label>
+        <input type="number" id="fSan" value="30" min="1" style="width:58px">
+      </span>
+      <div class="sep"></div>
+      <span class="tip r" data-tip="La data da cui si contano i giorni trascorsi. È oggi per impostazione predefinita. Spostandola indietro vedi la situazione com'era a quella data: serve per ricostruire lo stato al momento di un audit o di una non conformità.">
+        <label for="fRef">Riferimento</label>
+        <input type="date" id="fRef">
+      </span>
+    </div>
+    <div class="bar legend" id="legend"></div>
+    <div id="wall"></div>
+  </div>
+
+  <!-- ====== REGISTRO ====== -->
+  <div class="panel" id="p-reg">
+    <div class="bar">
+      <span class="tip" data-tip="Prima e ultima giornata mostrate nella griglia. Modificandole a mano i pulsanti rapidi si deselezionano. Il registro copre dal 01/01/2019 al 19/09/2026.">
+        <label for="rFrom">Dal</label><input type="date" id="rFrom">
+        <label for="rTo">Al</label><input type="date" id="rTo">
+      </span>
+      <span class="tip" data-tip="Imposta l'intervallo sugli ultimi N giorni a partire dall'ultima registrazione presente nel file. A 90 giorni la griglia arriva a circa 15.000 celle e il primo disegno rallenta: filtra per reparto se serve.">
+        <div class="seg2" id="rQuick">
+          <button data-n="7">7 gg</button><button data-n="15">15 gg</button>
+          <button data-n="30" aria-pressed="true">30 gg</button>
+          <button data-n="60">60 gg</button><button data-n="90">90 gg</button>
+        </div>
+      </span>
+      <div class="sep"></div>
+      <span class="tip" data-tip="Mostra le colonne di un solo reparto invece di tutte e 49. Riduce lo scorrimento orizzontale e alleggerisce la griglia sugli intervalli lunghi.">
+        <label for="rGrp">Reparto</label>
+        <select id="rGrp"><option value="">tutti</option></select>
+      </span>
+      <div class="sep"></div>
+      <span class="count" id="rInfo"></span>
+    </div>
+    <div class="gridwrap"><table class="reg" id="regTable"></table></div>
+  </div>
+
+  <!-- ====== INSERIMENTO ====== -->
+  <div class="panel" id="p-ins">
+    <div class="bar">
+      <span class="tip" data-tip="Giornata da compilare. Si apre su oggi se presente nel foglio, altrimenti sull'ultima giornata registrata.">
+        <label for="iDate">Data</label><input type="date" id="iDate">
+      </span>
+      <span class="tip" data-tip="Turno della giornata. Ogni data occupa tre righe nel foglio Excel, una per turno: quello che scegli qui decide su quale riga finiscono i cicli.">
+      <label>Turno</label>
+      <div class="seg" id="iTurno" style="width:180px">
+        <button data-t="0" aria-pressed="true">I°</button>
+        <button data-t="1" aria-pressed="false">II°</button>
+        <button data-t="2" aria-pressed="false">III°</button>
+      </div>
+      </span>
+      <div class="sep"></div>
+      <span class="tip" data-tip="Riduce l'elenco sotto alle sole attrezzature che contengono il testo digitato, per non scorrere tutte e 49 le voci.">
+        <label for="iSearch">Filtra</label>
+        <input type="text" id="iSearch" placeholder="nome attrezzatura" style="width:190px">
+      </span>
+      <div class="sep"></div>
+      <span class="count" id="iInfo"></span>
+    </div>
+    <div class="entry">
+      <div class="card"><h3>Cicli eseguiti nel turno</h3><div id="iList"></div></div>
+      <div>
+        <div class="card" style="margin-bottom:12px"><h3>Controlli del turno</h3><div id="iCtrl"></div></div>
+        <div class="card"><h3>Operatore e note</h3>
+          <div class="field"><label for="iOp">Operatore / verifica ciclo</label><input type="text" id="iOp" list="opList"><datalist id="opList"></datalist></div>
+          <div class="field"><label for="iNote">Note</label><textarea id="iNote" rows="3"></textarea></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="ovl" class="hide"><div id="det"></div></div>
+<div id="hovl" class="hide"><div id="hist"></div></div>
+
+<script>
+"use strict";
+async function diag(){
+  const ok=v=>v?'<b style="color:#1b6b3a">sì</b>':'<b style="color:#c62828">no</b>';
+  let ls=false; try{ localStorage.setItem("_t","1"); localStorage.removeItem("_t"); ls=true; }catch(e){}
+  let idb=false;
+  try{ idb=await new Promise(r=>{ const q=indexedDB.open("_probe",1);
+      q.onsuccess=()=>{ q.result.close(); try{indexedDB.deleteDatabase("_probe");}catch(e){} r(true); };
+      q.onerror=()=>r(false); q.onblocked=()=>r(false); setTimeout(()=>r(false),1500); }); }catch(e){}
+  const fsa = typeof window.showOpenFilePicker==="function";
+  const el=$("#diag"); if(!el) return;
+  el.innerHTML=`<b>Questa postazione.</b> Indirizzo: <code>${location.protocol}</code> ·
+    memoria del browser (IndexedDB, serve per ricaricare da solo l'ultimo file): ${ok(idb)} ·
+    memoria semplice (localStorage, per le impostazioni): ${ok(ls)} ·
+    salvataggio diretto sul file originale: ${ok(fsa)}${fsa?"":" — disponibile solo su Chrome ed Edge"}.`;
+}
+window.addEventListener("load",()=>{
+  diag(); restoreCheck();
+  if(typeof JSZip==="undefined"){
+    document.querySelector("#start .note").innerHTML =
+      "<b>Attenzione: libreria di compressione non caricata.</b> Al primo avvio serve una connessione a "+
+      "cdnjs.cloudflare.com. Se la postazione è isolata dalla rete, scarica <code>jszip.min.js</code> da "+
+      "un'altra postazione, mettilo nella stessa cartella di questo file e sostituisci l'indirizzo nel tag "+
+      "&lt;script&gt; con <code>jszip.min.js</code>.";
+  }
+});
+
+/* ============================================================
+   Costanti di dominio — ricavate dal file SR16 P07 REV08
+   ============================================================ */
+const CIP = {
+  1:{c:"#00B050",t:"#fff",  n:"CIP1", d:"Risciacquo con acqua"},
+  2:{c:"#FFFF00",t:"#3a3200",n:"CIP2", d:"Acqua + soda"},
+  3:{c:"#00B0F0",t:"#04303f",n:"CIP3", d:"Acqua + soda + sanitizzante (Divosan Active)"},
+  4:{c:"#7030A0",t:"#fff",  n:"CIP4", d:"Acqua + soda 80°C + acido + sanitizzante"},
+  5:{c:"#FFC000",t:"#3a2600",n:"CIP5", d:"Monster: soda 85°C + sanitizzante"}
+};
+const GROUPS = [
+  ["Serbatoi di stoccaggio","E","Q"],
+  ["Serbatoi di preparazione","R","T"],
+  ["Linea Aperol","U","Z"],
+  ["Serbatoi S200–S204","AA","AE"],
+  ["Scarico autobotte e succhi","AF","AG"],
+  ["Glucosio, isoglucosio, destrosio","AH","AK"],
+  ["Sciroppo di zucchero","AL","AM"],
+  ["Dissolutore, pastorizzatori, ATK","AN","AP"],
+  ["Linee di trasferimento","AQ","AW"],
+  ["Linee di imbottigliamento","AX","BA"]
+];
+const CTRL_FROM="BB", CTRL_TO="BG", COL_OP="BH", COL_NOTE="BI";
+const COL_DATE="B", COL_TURNO="D";
+const ROW0 = 5;                 // prima riga dati
+const SHEET_NAME = "sanificazioni";
+const TURNI = ["I°","II°","III°"];
+
+/* ============================================================
+   Utility
+   ============================================================ */
+const $ = s=>document.querySelector(s);
+const $$ = s=>[...document.querySelectorAll(s)];
+const c2n = c=>{let n=0;for(const ch of c)n=n*26+(ch.charCodeAt(0)-64);return n;};
+const n2c = n=>{let s="";while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26;}return s;};
+const esc = s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const serial2date = s=>new Date(Date.UTC(1899,11,30)+Math.round(s)*86400000);
+const date2serial = d=>Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(1899,11,30))/86400000);
+const iso = d=>`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`;
+const isoLocal = d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const ddmm = d=>`${String(d.getUTCDate()).padStart(2,"0")}/${String(d.getUTCMonth()+1).padStart(2,"0")}/${d.getUTCFullYear()}`;
+const ddmmyy = d=>`${String(d.getUTCDate()).padStart(2,"0")}/${String(d.getUTCMonth()+1).padStart(2,"0")}/${String(d.getUTCFullYear()).slice(2)}`;
+const WD = ["dom","lun","mar","mer","gio","ven","sab"];
+const ABBR = [
+  [/\bSerbatoi\b/gi,"Serb."],[/\bSerbatoio\b/gi,"Serb."],[/\bpreparazione\b/gi,"prep."],
+  [/\bstoccaggio\b/gi,"stocc."],[/\btrasferimento\b/gi,"trasf."],[/\btubazione\b/gi,"tubaz."],
+  [/\bimbottigliamento\b/gi,"imbott."],[/\baromatizzatori\b/gi,"aromatizz."],
+  [/\bPastorizzatore\b/gi,"Pastorizz."],[/\bisoglucosio\b/gi,"isogluc."],
+  [/\bingredienti\b/gi,"ingred."],[/\bresidui\b/gi,"res."],[/\bestern[oi]\.?\b/gi,"est."],
+  [/\bpompa-linea\b/gi,"pompa-lin."],[/\bLINEA\b/g,"LIN."],[/\blinea\b/g,"lin."],
+  [/\bASETTICA\b/g,"ASETT."],[/\bINGRESSO\b/g,"INGR."],[/\bsuperficie\b/gi,"sup."]
+];
+function abbrev(t){ let s=String(t); for(const [re,r] of ABBR) s=s.replace(re,r); return s.replace(/\s{2,}/g," ").trim(); }
+
+function toast(msg,ms=2600){
+  const el=document.createElement("div"); el.className="toast"; el.textContent=msg;
+  document.body.appendChild(el); setTimeout(()=>el.remove(),ms);
+}
+
+/* ============================================================
+   Stato applicativo
+   ============================================================ */
+const S = {
+  zip:null, fileName:"", sheetPath:"", xml:"",
+  rowSpan:{},            // rowNumber -> [start,end] dentro xml
+  cellStyle:{},          // colonna -> indice stile (dal template ultima riga)
+  days:[],               // {serial, date, rows:[r,r,r]}
+  dayByIso:{},           // "yyyy-mm-dd" -> indice giorno
+  data:{},               // rowNumber -> {col:value}
+  head:{},               // colonna -> nome intestazione
+  equip:[],              // [{col,name,group}]
+  ctrls:[],              // [{col,name,short}]
+  edits:new Map(),       // "E8380" -> {v, num}
+  hist:[], redo:[], rowDay:{}, handle:null,
+  maxRow:0, lastDayIdx:-1,
+  operators:[]
+};
+
+/* ============================================================
+   Caricamento e parsing
+   ============================================================ */
+$("#bLoad").onclick = $("#bLoad2").onclick = async ()=>{
+  if(FSA){ try{ const f=await pickFile(); return load(f); }catch(e){ if(e.name==="AbortError") return; } }
+  $("#file").click();
+};
+
+async function restoreCheck(){
+  let snap=null,fil=null,h=null;
+  try{ snap=await kvGet("snap"); fil=await kvGet("file"); h=await kvGet("handle"); }catch(e){ return; }
+  if(!fil && !h) return;
+  const n=snap?snap.edits.length:0;
+  const box=$("#restore"); if(!box) return;
+  box.classList.remove("hide");
+  box.innerHTML=`<b>Sessione precedente trovata.</b> ${esc((fil&&fil.name)||(h&&h.name)||"file")}
+    · ultimo salvataggio locale ${fil?new Date((snap&&snap.savedAt)||fil.savedAt).toLocaleString("it-IT"):"—"}
+    ${n?` · <b style="color:var(--alert)">${n} modifiche non ancora scritte nel file</b>`:" · nessuna modifica in sospeso"}
+    <div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">
+      ${h?`<button class="btn2" id="rHandle">Riapri il file dal disco</button>`:""}
+      ${fil?`<button class="btn2" id="rCache">Riprendi dalla copia in memoria</button>`:""}
+      <button class="btn2" id="rDrop">Ricomincia da capo</button></div>
+    ${h?`<div style="margin-top:7px;font-size:11.5px">Riaprire dal disco rilegge il file aggiornato:
+      è la scelta giusta se qualcun altro lo ha modificato nel frattempo.</div>`:""}`;
+  if($("#rHandle")) $("#rHandle").onclick=async()=>{
+    try{ if(!await canWrite(h)){ alert("Permesso negato sul file."); return; }
+      S.handle=h; const f=await h.getFile(); await load(f); await reapply(snap);
+    }catch(e){ alert("Non riesco a riaprire il file: "+e.message); }
+  };
+  if($("#rCache")) $("#rCache").onclick=async()=>{
+    try{ S.handle=null;
+      const f=new File([fil.buf],fil.name,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+      await load(f); await reapply(snap);
+      toast("Stai lavorando su una copia salvata il "+new Date(fil.savedAt).toLocaleString("it-IT"),7000);
+    }catch(e){ alert("Ripristino non riuscito: "+e.message); }
+  };
+  $("#rDrop").onclick=async()=>{
+    if(!confirm("Elimini la sessione salvata? Le modifiche non ancora scritte nel file andranno perse.")) return;
+    try{ await kvDel("snap"); await kvDel("file"); await kvDel("handle"); }catch(e){}
+    box.classList.add("hide");
+  };
+}
+async function reapply(snap){
+  if(!snap||!snap.edits.length) return;
+  for(const [addr,v,num] of snap.edits){
+    const r=+/\d+/.exec(addr)[0], col=/^([A-Z]+)/.exec(addr)[1];
+    setVal(r,col,v,num,true);
+  }
+  S.hist=Array.isArray(snap.hist)?snap.hist:[];
+  updDirty(); refreshAll();
+  toast(`Ripristinate ${snap.edits.length} modifiche non salvate`,6000);
+}
+$("#file").onchange = e=>{ if(e.target.files[0]) load(e.target.files[0]); };
+document.addEventListener("dragover",e=>{e.preventDefault();});
+document.addEventListener("drop",e=>{
+  e.preventDefault();
+  const f=[...e.dataTransfer.files].find(f=>f.name.toLowerCase().endsWith(".xlsx"));
+  if(f) load(f);
+});
+
+/* ---------- memoria del browser (IndexedDB) ---------- */
+const DB={h:null};
+function idb(){ return new Promise((res,rej)=>{ if(DB.h) return res(DB.h);
+  const q=indexedDB.open("sr16p07",1);
+  q.onupgradeneeded=()=>q.result.createObjectStore("kv");
+  q.onsuccess=()=>{DB.h=q.result;res(DB.h);}; q.onerror=()=>rej(q.error); }); }
+function kv(mode,fn){ return idb().then(db=>new Promise((res,rej)=>{
+  const t=db.transaction("kv",mode), o=t.objectStore("kv"); let out;
+  out=fn(o); t.oncomplete=()=>res(out&&out.result!==undefined?out.result:out);
+  t.onerror=()=>rej(t.error); })); }
+const kvSet=(k,v)=>kv("readwrite",o=>o.put(v,k));
+const kvGet=k=>kv("readonly",o=>o.get(k));
+const kvDel=k=>kv("readwrite",o=>o.delete(k));
+
+let saveT=null;
+function autosave(){
+  clearTimeout(saveT);
+  saveT=setTimeout(async()=>{
+    if(!S.fileName) return;
+    try{
+      await kvSet("snap",{name:S.fileName,savedAt:Date.now(),
+        edits:[...S.edits].map(([k,v])=>[k,v.v,v.num]),hist:S.hist});
+      stamp(`salvato in locale alle ${new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}`);
+    }catch(e){ stamp("memoria del browser non disponibile",true); }
+  },700);
+}
+function stamp(t,bad){ const el=$("#asave"); if(!el) return;
+  el.textContent=t; el.style.color=bad?"#ff9d9d":"#8fb3a0"; }
+
+/* ---------- accesso diretto al file (Chrome / Edge) ---------- */
+const FSA = typeof window.showOpenFilePicker==="function";
+async function pickFile(){
+  const [h]=await window.showOpenFilePicker({types:[{description:"Cartella di lavoro Excel",
+    accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"]}}]});
+  S.handle=h; try{ await kvSet("handle",h); }catch(e){}
+  return await h.getFile();
+}
+async function canWrite(h){
+  if(!h||!h.queryPermission) return false;
+  if(await h.queryPermission({mode:"readwrite"})==="granted") return true;
+  return await h.requestPermission({mode:"readwrite"})==="granted";
+}
+
+async function load(file){
+  if(typeof JSZip==="undefined"){
+    alert("Libreria JSZip non caricata. Serve una connessione a internet al primo avvio, oppure apri la pagina da una postazione con accesso a cdnjs.cloudflare.com.");
+    return;
+  }
+  toast("Lettura del file in corso…",8000);
+  try{
+    const buf = await file.arrayBuffer();
+    S.zip = await JSZip.loadAsync(buf);
+    S.fileName = file.name;
+    try{ await kvSet("file",{name:file.name,buf,savedAt:Date.now(),
+      mtime:file.lastModified||0,size:file.size}); }catch(e){}
+
+    // individua il foglio "sanificazioni"
+    const wb  = await S.zip.file("xl/workbook.xml").async("string");
+    const rel = await S.zip.file("xl/_rels/workbook.xml.rels").async("string");
+    const sh  = [...wb.matchAll(/<sheet[^>]*name="([^"]+)"[^>]*r:id="([^"]+)"/g)]
+                 .find(m=>m[1].trim().toLowerCase()===SHEET_NAME);
+    if(!sh) throw new Error(`Nel file non c'è un foglio chiamato "${SHEET_NAME}".`);
+    const rl = [...rel.matchAll(/<Relationship Id="([^"]+)"[^>]*Target="([^"]+)"/g)]
+                 .find(m=>m[1]===sh[2]);
+    S.sheetPath = "xl/" + rl[2].replace(/^\/?xl\//,"");
+
+    S.xml = await S.zip.file(S.sheetPath).async("string");
+    const ss = S.zip.file("xl/sharedStrings.xml")
+      ? await S.zip.file("xl/sharedStrings.xml").async("string") : "";
+    const shared = [...ss.matchAll(/<si>([\s\S]*?)<\/si>/g)]
+      .map(m=>[...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map(x=>unesc(x[1])).join(""));
+
+    parseSheet(shared);
+    buildModel();
+    render();
+    $("#start").classList.add("hide");
+    $("#fchip").textContent = file.name;
+    $("#bSave").disabled = false;
+    $("#bSave").textContent = (FSA&&S.handle) ? "Salva sul file" : "Scarica file aggiornato";
+    stamp(S.handle?"collegato al file su disco":"copia in memoria del browser");
+    toast(`Caricate ${S.days.length} giornate · ultima registrazione ${S.lastDayIdx>=0?ddmm(S.days[S.lastDayIdx].date):"—"}`);
+  }catch(err){
+    console.error(err);
+    alert("Non riesco a leggere il file: "+err.message);
+  }
+}
+
+const unesc = s=>s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"')
+                  .replace(/&apos;/g,"'").replace(/&#(\d+);/g,(_,d)=>String.fromCharCode(d))
+                  .replace(/&amp;/g,"&");
+
+function parseSheet(shared){
+  S.rowSpan={}; S.data={}; S.maxRow=0;
+  const rowRe=/<row r="(\d+)"([^>]*)>([\s\S]*?)<\/row>/g;
+  const cellRe=/<c r="([A-Z]+)(\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+  let m;
+  while((m=rowRe.exec(S.xml))){
+    const r=+m[1];
+    S.rowSpan[r]=[m.index,rowRe.lastIndex];
+    if(r>S.maxRow) S.maxRow=r;
+    if(r===4){ parseHeadRow(m[3],shared); continue; }
+    if(r<ROW0) continue;
+    const rec={}; cellRe.lastIndex=0; let c;
+    while((c=cellRe.exec(m[3]))){
+      const col=c[1], attrs=c[3]||"", body=c[4]||"";
+      if(!body) continue;
+      let v=null;
+      if(/t="s"/.test(attrs)){ const x=/<v>(\d+)<\/v>/.exec(body); if(x) v=shared[+x[1]]; }
+      else if(/t="(inlineStr|str)"/.test(attrs)){ const x=/<t[^>]*>([\s\S]*?)<\/t>/.exec(body); if(x) v=unesc(x[1]); }
+      else { const x=/<v>([\s\S]*?)<\/v>/.exec(body); if(x) v=unesc(x[1]); }
+      if(v!==null && String(v).trim()!=="") rec[col]=String(v).trim();
+    }
+    if(Object.keys(rec).length) S.data[r]=rec;
+  }
+  // stili di riferimento presi dall'ultima riga (per eventuali righe nuove)
+  const last=S.rowSpan[S.maxRow];
+  S.cellStyle={}; cellRe.lastIndex=0;
+  const seg=S.xml.slice(last[0],last[1]); let c2;
+  while((c2=cellRe.exec(seg))){
+    const s=/s="(\d+)"/.exec(c2[3]||""); S.cellStyle[c2[1]] = s?s[1]:null;
+  }
+}
+
+function parseHeadRow(inner,shared){
+  const re=/<c r="([A-Z]+)(\d+)"([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g; let c;
+  while((c=re.exec(inner))){
+    const col=c[1], attrs=c[3]||"", body=c[4]||"";
+    if(!body) continue;
+    let v=null;
+    if(/t="s"/.test(attrs)){ const x=/<v>(\d+)<\/v>/.exec(body); if(x) v=shared[+x[1]]; }
+    else { const x=/<t[^>]*>([\s\S]*?)<\/t>/.exec(body); if(x) v=unesc(x[1]); }
+    if(v) S.head[col]=String(v).replace(/\s+/g," ").trim();
+  }
+}
+
+function buildModel(){
+  // giornate: 3 righe per data a partire da ROW0
+  S.days=[]; S.dayByIso={}; S.rowDay={};
+  for(let r=ROW0;r+2<=S.maxRow;r+=3){
+    const sv=S.data[r] && S.data[r][COL_DATE];
+    if(!sv || isNaN(+sv)) continue;
+    const d=serial2date(+sv);
+    const idx=S.days.length;
+    S.days.push({serial:+sv,date:d,rows:[r,r+1,r+2]});
+    S.dayByIso[iso(d)]=idx;
+    S.rowDay[r]=[idx,0]; S.rowDay[r+1]=[idx,1]; S.rowDay[r+2]=[idx,2];
+  }
+  // attrezzature
+  S.equip=[];
+  for(const [g,a,b] of GROUPS)
+    for(let i=c2n(a);i<=c2n(b);i++){
+      const col=n2c(i);
+      S.equip.push({col, name:(S.head[col]||col).replace(/\s{2,}/g," "), group:g});
+    }
+  // controlli
+  S.ctrls=[];
+  for(let i=c2n(CTRL_FROM);i<=c2n(CTRL_TO);i++){
+    const col=n2c(i), full=S.head[col]||col;
+    S.ctrls.push({col,name:full,short:shortCtrl(full)});
+  }
+  // ultima giornata con dati + elenco operatori
+  S.lastDayIdx=-1; const ops=new Set();
+  S.days.forEach((d,i)=>{
+    for(const r of d.rows){
+      const rec=S.data[r]; if(!rec) continue;
+      if(S.equip.some(e=>rec[e.col]!==undefined)) S.lastDayIdx=i;
+      if(rec[COL_OP] && rec[COL_OP]!=="/") rec[COL_OP].split(/[\/,+]/).forEach(x=>{x=x.trim(); if(x.length>2) ops.add(x.toUpperCase());});
+    }
+  });
+  S.operators=[...ops].sort();
+}
+function shortCtrl(f){
+  const u=f.toUpperCase();
+  if(u.includes("DIVOSFERE")) return "Divosfere";
+  const m=/FILTRI\s+([A-Za-z]+)/.exec(f); if(m) return "Filtri "+m[1].toUpperCase();
+  if(u.includes("SENSORIALE")) return "Sensoriale";
+  return f.slice(0,18);
+}
+
+/* ============================================================
+   Lettura / scrittura valori (con le modifiche in sospeso)
+   ============================================================ */
+function getVal(row,col){
+  const k=col+row;
+  if(S.edits.has(k)) return S.edits.get(k).v;
+  const rec=S.data[row]; return rec && rec[col]!==undefined ? rec[col] : "";
+}
+const HISTMAX=10;
+function setVal(row,col,v,num,silent){
+  const k=col+row;
+  const orig=(S.data[row] && S.data[row][col]!==undefined)?S.data[row][col]:"";
+  const before=getVal(row,col);
+  v = v===null||v===undefined?"":String(v).trim();
+  if(v===before){ updDirty(); return; }
+  if(v===orig) S.edits.delete(k); else S.edits.set(k,{v,num:!!num});
+  if(!silent){
+    S.hist.unshift({row,col,before,after:v,num:!!num,ts:Date.now()});
+    if(S.hist.length>HISTMAX) S.hist.length=HISTMAX;
+    S.redo=[];
+  }
+  updDirty();
+}
+function updDirty(){
+  const n=S.edits.size, el=$("#dirty");
+  el.classList.toggle("hide",n===0);
+  el.textContent = n===1 ? "1 modifica non salvata" : n+" modifiche non salvate";
+  const b=$("#bHist"); if(b) b.disabled=!S.hist.length&&!S.redo.length;
+  if(!$("#hovl").classList.contains("hide")) drawHist();
+  autosave();
+}
+
+/* ---------- annulla / ripristina ---------- */
+function labelOf(col){
+  if(col===COL_OP) return "Operatore";
+  if(col===COL_NOTE) return "Note";
+  const e=S.equip.find(x=>x.col===col); if(e) return e.name;
+  const c=S.ctrls.find(x=>x.col===col); if(c) return c.short;
+  return "colonna "+col;
+}
+function whenOf(row){
+  const m=S.rowDay[row];
+  return m ? `${ddmm(S.days[m[0]].date)} · ${TURNI[m[1]]}` : `riga ${row}`;
+}
+function agoOf(ts){
+  const s=Math.round((Date.now()-ts)/1000);
+  if(s<60) return "adesso";
+  const m=Math.round(s/60); if(m<60) return m+" min fa";
+  return Math.round(m/60)+" h fa";
+}
+function refreshAll(){
+  renderWall();
+  const cur=$$("#tabs .tab").find(t=>t.getAttribute("aria-selected")==="true").dataset.p;
+  if(cur==="reg") drawReg();
+  if(cur==="ins") drawIns();
+}
+function undo(){
+  const h=S.hist.shift(); if(!h) return;
+  setVal(h.row,h.col,h.before,h.num,true);
+  S.redo.unshift(h); refreshAll(); updDirty(); drawHist();
+}
+function redoLast(){
+  const h=S.redo.shift(); if(!h) return;
+  setVal(h.row,h.col,h.after,h.num,true);
+  S.hist.unshift(h); refreshAll(); updDirty(); drawHist();
+}
+function valTag(v,num){
+  if(v==="") return `<span class="hv empty">vuoto</span>`;
+  const c=cipOf(v);
+  if(num && CIP[c]) return `<span class="pill" style="background:${CIP[c].c};color:${CIP[c].t}">${c}</span>`;
+  return `<span class="hv">${esc(v)}</span>`;
+}
+function drawHist(){
+  const rows = S.hist.map((h,i)=>`
+    <div class="hr">
+      <span class="w"><b>${esc(labelOf(h.col))}</b><span>${esc(whenOf(h.row))}</span></span>
+      <span class="vv">${valTag(h.before,h.num)}<span class="ar">&rarr;</span>${valTag(h.after,h.num)}</span>
+      <span class="tm">${agoOf(h.ts)}</span>
+      ${i===0?`<button class="btn2" id="undo1" title="Annulla questa modifica">&#8630;</button>`
+             :`<span style="width:32px"></span>`}
+    </div>`).join("");
+  $("#hist").innerHTML=`
+    <div class="hh"><span>Ultime ${HISTMAX} modifiche</span>
+      <button class="btn2 lbl" id="hUndo" ${S.hist.length?"":"disabled"}>&#8630; Annulla ultima</button>
+      <button class="btn2 lbl" id="hRedo" ${S.redo.length?"":"disabled"}>&#8631; Ripristina</button>
+      <button class="btn2" id="hX" aria-label="Chiudi">&times;</button></div>
+    ${rows||`<div class="hr"><span class="w" style="color:var(--muted)">Nessuna modifica in questo turno.</span></div>`}
+    <div class="hf">Si annulla partendo dall'ultima, come Ctrl+Z. Le modifiche più vecchie della decima
+      escono dall'elenco ma restano scritte nel file. Chiudendo la pagina la cronologia si perde.</div>`;
+  $("#hX").onclick=()=>$("#hovl").classList.add("hide");
+  $("#hUndo").onclick=undo; $("#hRedo").onclick=redoLast;
+  if($("#undo1")) $("#undo1").onclick=undo;
+}
+document.addEventListener("keydown",e=>{
+  if(!(e.ctrlKey||e.metaKey)) return;
+  const t=e.target.tagName;
+  if(t==="INPUT"||t==="TEXTAREA"||t==="SELECT") return;
+  if(e.key==="z"||e.key==="Z"){ e.preventDefault(); undo(); }
+  if(e.key==="y"||e.key==="Y"){ e.preventDefault(); redoLast(); }
+});
+window.addEventListener("beforeunload",e=>{ if(S.edits.size){e.preventDefault();e.returnValue="";} });
+
+/** valore CIP normalizzato: 1..5 oppure null (con testo anomalo conservato) */
+function cipOf(v){
+  if(v===""||v===null||v===undefined) return null;
+  const m=/^([1-5])$/.exec(String(v).trim());
+  return m ? +m[1] : "?";
+}
+
+/* ============================================================
+   Ultimo lavaggio per colonna
+   ============================================================ */
+function lastWash(col,upToDayIdx){
+  const end = upToDayIdx===undefined ? S.days.length-1 : upToDayIdx;
+  let last=null, lastSanit=null;
+  for(let i=end;i>=0;i--){
+    const d=S.days[i];
+    for(let t=2;t>=0;t--){
+      const v=getVal(d.rows[t],col); if(v==="") continue;
+      const cip=cipOf(v);
+      const hit={cip,raw:v,day:i,turno:t,date:d.date,op:getVal(d.rows[t],COL_OP)};
+      if(!last) last=hit;
+      if(!lastSanit && typeof cip==="number" && cip>=3) lastSanit=hit;
+      if(last&&lastSanit) return {last,lastSanit};
+    }
+  }
+  return {last,lastSanit};
+}
+
+/* ============================================================
+   Render generale
+   ============================================================ */
+function render(){ renderLegend(); renderWall(); initReg(); initIns(); }
+
+$("#tabs").onclick=e=>{
+  const b=e.target.closest(".tab"); if(!b) return;
+  $$("#tabs .tab").forEach(t=>t.setAttribute("aria-selected", t===b));
+  $$(".panel").forEach(p=>p.classList.remove("on"));
+  $("#p-"+b.dataset.p).classList.add("on");
+  if(b.dataset.p==="reg") drawReg();
+  if(b.dataset.p==="ins") drawIns();
+  if(b.dataset.p==="stato") renderWall();
+};
+
+function renderLegend(){
+  $("#legend").innerHTML =
+    Object.entries(CIP).map(([k,c])=>
+      `<span class="lg"><span class="sw" style="background:${c.c};color:${c.t}">${k}</span>
+       <span class="lgt">${esc(c.d)}</span></span>`).join("") +
+    `<span class="lg"><span class="sw" style="background:#fff;color:#8a3a00">?</span>
+      <span class="lgt">valore non standard nel file</span></span>`;
+}
+
+/* ---------- muro dello stato ---------- */
+["fSearch","fSort","fOnly","fWarn","fOver","fSan","fRef"].forEach(id=>{
+  $("#"+id).addEventListener("input",renderWall);
+});
+function refDate(){
+  const v=$("#fRef").value;
+  return v ? new Date(v+"T00:00:00Z") : new Date(Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()));
+}
+function renderWall(){
+  if(!S.days.length) return;
+  if(!$("#fRef").value) $("#fRef").value = isoLocal(new Date());
+  const ref=refDate(), warn=+$("#fWarn").value||7, over=+$("#fOver").value||14, sanThr=+$("#fSan").value||30;
+  const q=$("#fSearch").value.trim().toLowerCase();
+  const sort=$("#fSort").value, only=$("#fOnly").value;
+
+  let items=S.equip.map(e=>{
+    const {last,lastSanit}=lastWash(e.col);
+    const age = last ? Math.round((ref-last.date)/86400000) : null;
+    const sanAge = lastSanit ? Math.round((ref-lastSanit.date)/86400000) : null;
+    return {...e,last,lastSanit,age,sanAge};
+  });
+  if(q) items=items.filter(i=>i.name.toLowerCase().includes(q)||i.group.toLowerCase().includes(q));
+  if(only==="over") items=items.filter(i=>i.age===null||i.age>=over);
+  if(only==="san") items=items.filter(i=>i.sanAge===null||i.sanAge>=sanThr);
+  if(only==="never") items=items.filter(i=>!i.last);
+
+  const wall=$("#wall");
+  if(!items.length){ wall.innerHTML=`<div class="note">Nessuna attrezzatura corrisponde ai filtri.</div>`; return; }
+
+  if(sort==="age"){
+    items.sort((a,b)=>(b.age===null?1e9:b.age)-(a.age===null?1e9:a.age));
+    wall.innerHTML=`<div class="grp"><h3>Ordinate per giorni dall'ultimo ciclo
+      <span class="count">${items.length} voci · riferimento ${ddmm(ref)}</span></h3>
+      <div class="wall">${items.map(i=>tile(i,warn,over,sanThr)).join("")}</div></div>`;
+  }else{
+    wall.innerHTML=GROUPS.map(([g])=>{
+      const sub=items.filter(i=>i.group===g); if(!sub.length) return "";
+      const bad=sub.filter(i=>i.age===null||i.age>=over).length;
+      return `<div class="grp"><h3>${esc(g)}
+        <span class="count">${sub.length} voci${bad?` · <b style="color:var(--alert)">${bad} oltre soglia</b>`:""}</span></h3>
+        <div class="wall">${sub.map(i=>tile(i,warn,over,sanThr)).join("")}</div></div>`;
+    }).join("");
+  }
+}
+function tile(i,warn,over,sanThr){
+  const L=i.last;
+  const cip = L ? L.cip : null;
+  const st = (typeof cip==="number") ? CIP[cip] : null;
+  const band = st ? st.c : "var(--line)";
+  const cls = !L ? "never" : (i.age>=over ? "over" : (i.age>=warn ? "warn" : ""));
+  const badge = L
+    ? `<span class="pill" style="background:${st?st.c:"#fff"};color:${st?st.t:"#8a3a00"}">${st?i.last.cip:"valore "+esc(L.raw)}</span>`
+    : `<span class="pill" style="background:#fff;color:var(--muted)">nessun ciclo</span>`;
+  const sOver = i.sanAge===null || i.sanAge>=sanThr;
+  const sPill = i.lastSanit
+    ? `<span class="pill" style="background:${CIP[i.lastSanit.cip].c};color:${CIP[i.lastSanit.cip].t}">${i.lastSanit.cip}</span>`
+    : "";
+  const sanit = i.lastSanit
+    ? `${sPill}<b>${i.sanAge} gg</b><span>dall'ultimo sanitizzante · ${ddmm(i.lastSanit.date)}</span>`
+    : `<b>mai</b><span>sanificato con sanitizzante</span>`;
+  const tip = L ? `${i.name} — ultimo ${st?st.n:"valore "+L.raw} il ${ddmm(L.date)} (${i.age} gg fa)`
+                : `${i.name} — nessun ciclo registrato`;
+  return `<div class="tile ${cls}" data-col="${i.col}" title="${esc(tip)}">
+    <div class="band" style="background:${band}"></div>
+    <div class="body">
+      <div class="nm">${esc(i.name)}</div>
+      <div class="meta">${badge} ${L?`&nbsp;${ddmm(L.date)} · ${TURNI[L.turno]}`:""}</div>
+      <div class="san ${sOver?"over":""}">${sanit}</div>
+    </div>
+    <div class="age"><b>${L?i.age:"—"}</b><span>${L?"GIORNI":"MAI"}</span></div>
+  </div>`;
+}
+
+/* ============================================================
+   Scheda dettaglio attrezzatura
+   ============================================================ */
+let DET={col:null,mode:"last",from:"",to:""};
+function histOf(col){
+  const out=[];
+  for(let i=S.days.length-1;i>=0;i--){
+    const d=S.days[i];
+    for(let t=2;t>=0;t--){
+      const v=getVal(d.rows[t],col); if(v==="") continue;
+      out.push({date:d.date,turno:t,v,cip:cipOf(v),op:getVal(d.rows[t],COL_OP),note:getVal(d.rows[t],COL_NOTE)});
+    }
+  }
+  return out;
+}
+function statsOf(h){
+  const dist={1:0,2:0,3:0,4:0,5:0,x:0};
+  h.forEach(e=>{ if(typeof e.cip==="number") dist[e.cip]++; else dist.x++; });
+  const ds=[...new Set(h.map(e=>+e.date))].sort((a,b)=>a-b);
+  const gaps=[]; for(let i=1;i<ds.length;i++) gaps.push(Math.round((ds[i]-ds[i-1])/86400000));
+  const g=[...gaps].sort((a,b)=>a-b);
+  return {dist,tot:h.length,first:ds.length?new Date(ds[0]):null,lastd:ds.length?new Date(ds[ds.length-1]):null,
+    med:g.length?g[Math.floor(g.length/2)]:null,
+    avg:gaps.length?Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length*10)/10:null,
+    max:g.length?g[g.length-1]:null};
+}
+$("#wall").addEventListener("click",e=>{
+  const t=e.target.closest(".tile"); if(t) openDet(t.dataset.col);
+});
+$("#ovl").addEventListener("click",e=>{ if(e.target.id==="ovl") closeDet(); });
+$("#hovl").addEventListener("click",e=>{ if(e.target.id==="hovl") $("#hovl").classList.add("hide"); });
+$("#bHist").onclick=()=>{ drawHist(); $("#hovl").classList.remove("hide"); };
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeDet(); $("#hovl").classList.add("hide"); } });
+function closeDet(){ $("#ovl").classList.add("hide"); DET.col=null; }
+function openDet(col){ DET.col=col; DET.mode="last"; DET.from=""; DET.to=""; drawDet(); $("#ovl").classList.remove("hide"); }
+
+function drawDet(){
+  const col=DET.col; if(!col) return;
+  const eq=S.equip.find(x=>x.col===col);
+  const h=histOf(col), st=statsOf(h), ref=refDate();
+  const L=h[0], LS=h.find(e=>typeof e.cip==="number"&&e.cip>=3);
+  const age = L?Math.round((ref-L.date)/86400000):null;
+  const ageS= LS?Math.round((ref-LS.date)/86400000):null;
+  const band = L&&CIP[L.cip] ? CIP[L.cip].c : "var(--line)";
+  const badge=(c,raw)=>CIP[c]
+    ? `<span class="pill" style="background:${CIP[c].c};color:${CIP[c].t}">${c}</span>`
+    : `<span class="pill" style="background:#fff;color:#8a3a00">valore ${esc(raw)}</span>`;
+
+  const from=$("#rFrom").value, to=$("#rTo").value;
+  const inPeriod=h.filter(e=>{const s=iso(e.date);return s>=from&&s<=to;});
+  const inCustom=h.filter(e=>{const s=iso(e.date);return (!DET.from||s>=DET.from)&&(!DET.to||s<=DET.to);});
+  let rows = DET.mode==="last" ? h.slice(0,16)
+           : DET.mode==="period" ? inPeriod
+           : DET.mode==="custom" ? inCustom : h;
+  const sel=statsOf(rows);
+
+  const pct=n=>sel.tot?(n/sel.tot*100):0;
+  const segs=[[1,CIP[1].c],[2,CIP[2].c],[3,CIP[3].c],[4,CIP[4].c],[5,CIP[5].c]]
+    .map(([k,c])=>`<div style="width:${pct(sel.dist[k])}%;background:${c}"></div>`).join("")+
+    `<div style="width:${pct(sel.dist.x)}%;background:#c9ced3"></div>`;
+  const etich={last:"ultimi 16 cicli",period:"periodo del registro",custom:"intervallo scelto",all:"storico completo"}[DET.mode];
+
+  $("#det").innerHTML=`
+  <div class="dh"><div class="bd" style="background:${band}"></div>
+    <div><h2>${esc(eq.name)}</h2><p>${esc(eq.group)} · colonna ${col}</p></div>
+    <button class="x" id="detX" aria-label="Chiudi">&times;</button></div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="lb">Ultimo ciclo</div>
+      <div class="bg">${L?age:"—"} <span style="font-size:12px;font-weight:400;color:var(--muted)">${L?"giorni fa":"mai"}</span></div>
+      <div class="sm">${L?badge(L.cip,L.v)+" "+ddmm(L.date)+" · "+TURNI[L.turno]:"nessun ciclo registrato"}</div></div>
+    <div class="kpi ${(!LS||ageS>90)?"bad":""}"><div class="lb">Ultimo con sanitizzante</div>
+      <div class="bg">${LS?ageS:"—"} <span style="font-size:12px;font-weight:400">${LS?"giorni fa":"mai"}</span></div>
+      <div class="sm">${LS?badge(LS.cip,LS.v)+" "+ddmm(LS.date):"nessun ciclo con sanitizzante"}</div></div>
+    <div class="kpi"><div class="lb">Intervallo tipico</div>
+      <div class="bg">${st.med!==null?st.med:"—"} <span style="font-size:12px;font-weight:400;color:var(--muted)">giorni</span></div>
+      <div class="sm">${st.avg!==null?`media ${st.avg} · max ${st.max}`:"dato non calcolabile"}</div></div>
+  </div>
+
+  <div style="padding:0 14px 12px">
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:5px">
+      <b style="color:var(--ink)">${sel.tot}</b> cicli · ${esc(etich)}${sel.first?` · dal ${ddmm(sel.first)} al ${ddmm(sel.lastd)}`:""}
+      ${sel.tot!==st.tot?` <span style="color:var(--muted)">(su ${st.tot} totali)</span>`:""}</div>
+    <div class="distr">${segs}</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-top:5px">
+      ${[1,2,3,4,5].map(k=>`<span class="pill" style="background:${CIP[k].c};color:${CIP[k].t}">${k}</span>&nbsp;<b style="color:var(--ink)">${sel.dist[k]}</b>`).join("&nbsp;&nbsp; ")}${sel.dist.x?`&nbsp;&nbsp; <b style="color:var(--ink)">${sel.dist.x}</b> anomali`:""}</div>
+  </div>
+
+  <div class="dfil"><span style="font-size:11.5px;color:var(--muted);margin-right:4px">Mostra</span>
+    <button data-m="last" aria-pressed="${DET.mode==="last"}">ultimi 16 cicli</button>
+    <button data-m="period" aria-pressed="${DET.mode==="period"}">periodo del registro (${inPeriod.length})</button>
+    <button data-m="all" aria-pressed="${DET.mode==="all"}">tutto lo storico (${st.tot})</button>
+    <span style="width:1px;align-self:stretch;background:var(--line2);margin:0 3px"></span>
+    <label for="dFrom" style="font-size:11.5px;color:var(--muted)">dal</label>
+    <input type="date" id="dFrom" value="${DET.from}" min="${st.first?iso(st.first):""}" max="${st.lastd?iso(st.lastd):""}"
+      title="Intervallo manuale. Puoi compilarne anche uno solo. La barra colorata e i conteggi qui sopra si ricalcolano sui soli cicli compresi fra queste date.">
+    <label for="dTo" style="font-size:11.5px;color:var(--muted)">al</label>
+    <input type="date" id="dTo" value="${DET.to}" min="${st.first?iso(st.first):""}" max="${st.lastd?iso(st.lastd):""}"
+      title="Intervallo manuale. Puoi compilarne anche uno solo. La barra colorata e i conteggi qui sopra si ricalcolano sui soli cicli compresi fra queste date.">
+    ${(DET.from||DET.to)?`<button id="dClr" title="azzera l'intervallo">&times;</button>`:""}</div>
+
+  <div class="hlist">${rows.length?rows.map(e=>`
+    <div class="hrow"><span class="dt">${ddmm(e.date)}</span>
+      <span class="tu">${WD[e.date.getUTCDay()]} ${TURNI[e.turno]}</span>
+      ${badge(e.cip,e.v)}
+      <span class="op">${esc(e.op||"—")}${e.note?" · "+esc(e.note):""}</span></div>`).join("")
+    :`<div class="hrow"><span class="op">Nessun ciclo in questo intervallo.</span></div>`}</div>`;
+
+  $("#detX").onclick=closeDet;
+  $$("#det .dfil button[data-m]").forEach(b=>b.onclick=()=>{ DET.mode=b.dataset.m; drawDet(); });
+  const onDate=()=>{ DET.from=$("#dFrom").value; DET.to=$("#dTo").value;
+    DET.mode=(DET.from||DET.to)?"custom":"last"; drawDet(); };
+  $("#dFrom").onchange=onDate; $("#dTo").onchange=onDate;
+  if($("#dClr")) $("#dClr").onclick=()=>{ DET.from=""; DET.to=""; DET.mode="last"; drawDet(); };
+}
+
+/* ============================================================
+   Registro
+   ============================================================ */
+function initReg(){
+  const g=$("#rGrp"); g.innerHTML=`<option value="">tutti i reparti</option>`+
+    GROUPS.map(([n])=>`<option>${esc(n)}</option>`).join("");
+  setRange(30);
+  $("#rQuick").onclick=e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    $$("#rQuick button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+    setRange(+b.dataset.n); drawReg();
+  };
+  $("#rGrp").addEventListener("change",drawReg);
+  ["rFrom","rTo"].forEach(id=>$("#"+id).addEventListener("change",()=>{
+    $$("#rQuick button").forEach(x=>x.setAttribute("aria-pressed",false)); drawReg();
+  }));
+}
+function setRange(n){
+  const end = S.days[S.lastDayIdx>=0?S.lastDayIdx:S.days.length-1].date;
+  const start = new Date(end.getTime()-(n-1)*86400000);
+  $("#rTo").value=iso(end); $("#rFrom").value=iso(start);
+}
+function drawReg(){
+  const from=$("#rFrom").value, to=$("#rTo").value, grp=$("#rGrp").value;
+  const idxs=S.days.map((d,i)=>i).filter(i=>{const s=iso(S.days[i].date);return s>=from&&s<=to;});
+  const cols=S.equip.filter(e=>!grp||e.group===grp);
+  $("#rInfo").textContent=`${idxs.length} giornate · ${cols.length} attrezzature · clic sulla cella per assegnare il ciclo`;
+  if(!idxs.length){ $("#regTable").innerHTML=`<tbody><tr><td style="padding:16px">Nessuna giornata nell'intervallo.</td></tr></tbody>`; return; }
+
+  // intestazione a due livelli: reparto + nome verticale
+  let gh=`<tr><th class="gh stickA" style="left:0;z-index:6">Data</th><th class="gh stickB" style="left:86px;z-index:6">Turno</th>`;
+  const seen=[];
+  cols.forEach(e=>{ const l=seen[seen.length-1]; if(l&&l.g===e.group) l.n++; else seen.push({g:e.group,n:1}); });
+  seen.forEach(s=>gh+=`<th class="gh" colspan="${s.n}"><span>${esc(s.g)}</span></th>`);
+  gh+=`<th class="gh" colspan="${S.ctrls.length}"><span>Controlli</span></th><th class="gh" colspan="2"><span>Operatore e note</span></th></tr>`;
+
+  let h2=`<tr class="h2"><th class="stickA" style="left:0;z-index:6"></th><th class="stickB" style="left:86px;z-index:6"></th>`;
+  cols.forEach(e=>h2+=`<th title="${esc(e.name)}"><div class="vh">${esc(abbrev(e.name))}</div></th>`);
+  S.ctrls.forEach(c=>h2+=`<th><div class="vh" title="${esc(c.name)}">${esc(c.short)}</div></th>`);
+  h2+=`<th><div class="vh">Operatore</div></th><th><div class="vh">Note</div></th></tr>`;
+
+  const todayIso=isoLocal(new Date());
+  let body="";
+  for(const di of idxs){
+    const d=S.days[di], ds=iso(d.date), wk=[0,6].includes(d.date.getUTCDay());
+    for(let t=0;t<3;t++){
+      const r=d.rows[t];
+      body+=`<tr class="${t===0?"d0":""} ${wk?"wknd":""} ${ds===todayIso?"today":""}">`;
+      if(t===0) body+=`<td class="stickA" rowspan="3" title="${ddmm(d.date)}">${WD[d.date.getUTCDay()]} ${ddmmyy(d.date)}</td>`;
+      body+=`<td class="stickB">${TURNI[t]}</td>`;
+      for(const e of cols) body+=cellHtml(r,e.col);
+      for(const c of S.ctrls){
+        const v=getVal(r,c.col), ed=S.edits.has(c.col+r);
+        body+=`<td class="ctrl ${ed?"edited":""}" data-r="${r}" data-c="${c.col}" data-k="ctrl"
+                style="${/non/i.test(v)?"background:var(--alert-bg);color:var(--alert);font-weight:700":""}">${esc(v)}</td>`;
+      }
+      body+=`<td class="free ${S.edits.has(COL_OP+r)?"edited":""}" data-r="${r}" data-c="${COL_OP}" data-k="txt">${esc(getVal(r,COL_OP))}</td>`;
+      body+=`<td class="free ${S.edits.has(COL_NOTE+r)?"edited":""}" data-r="${r}" data-c="${COL_NOTE}" data-k="txt">${esc(getVal(r,COL_NOTE))}</td>`;
+      body+=`</tr>`;
+    }
+  }
+  $("#regTable").innerHTML=`<thead>${gh}${h2}</thead><tbody>${body}</tbody>`;
+}
+function cellHtml(r,col){
+  const v=getVal(r,col), cip=cipOf(v), ed=S.edits.has(col+r);
+  let st="";
+  if(typeof cip==="number") st=`background:${CIP[cip].c};color:${CIP[cip].t}`;
+  else if(cip==="?") st=`background:#fff;color:#8a3a00`;
+  return `<td class="cell ${ed?"edited":""}" data-r="${r}" data-c="${col}" data-k="cip" style="${st}">${esc(v)}</td>`;
+}
+$("#regTable").addEventListener("click",e=>{
+  const td=e.target.closest("td[data-k]"); if(!td) return;
+  const r=+td.dataset.r, col=td.dataset.c, k=td.dataset.k, cur=getVal(r,col);
+  if(k==="cip"){
+    const seq=["","1","2","3","4","5"];
+    const nx=seq[(seq.indexOf(String(cur))+1+seq.length)%seq.length] ?? "";
+    setVal(r,col,nx,true);
+    td.outerHTML=cellHtml(r,col);
+  }else if(k==="ctrl"){
+    const seq=["","OK","NON OK"];
+    const nx=seq[(seq.indexOf(String(cur).toUpperCase())+1+seq.length)%seq.length] ?? "";
+    setVal(r,col,nx,false); drawReg();
+  }else{
+    const v=prompt(col===COL_OP?"Operatore:":"Note:",cur);
+    if(v!==null){ setVal(r,col,v,false); drawReg(); }
+  }
+});
+
+/* ============================================================
+   Registrazione turno
+   ============================================================ */
+function initIns(){
+  const d=S.days[S.lastDayIdx>=0?S.lastDayIdx:0].date;
+  const today=isoLocal(new Date());
+  $("#iDate").value = S.dayByIso[today]!==undefined ? today : iso(d);
+  $("#iDate").min=iso(S.days[0].date); $("#iDate").max=iso(S.days[S.days.length-1].date);
+  $("#iDate").onchange=drawIns;
+  $("#iSearch").addEventListener("input",drawIns);
+  $("#iTurno").onclick=e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    $$("#iTurno button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+    drawIns();
+  };
+  $("#opList").innerHTML=S.operators.map(o=>`<option value="${esc(o)}">`).join("");
+}
+function curRow(){
+  const di=S.dayByIso[$("#iDate").value];
+  if(di===undefined) return null;
+  const t=+$$("#iTurno button").find(b=>b.getAttribute("aria-pressed")==="true").dataset.t;
+  return S.days[di].rows[t];
+}
+function drawIns(){
+  const r=curRow();
+  if(r===null){
+    $("#iList").innerHTML=`<div class="note">Questa data non esiste nel foglio. Il registro copre dal
+      ${ddmm(S.days[0].date)} al ${ddmm(S.days[S.days.length-1].date)}: per andare oltre vanno aggiunte
+      le righe direttamente in Excel.</div>`;
+    $("#iCtrl").innerHTML=""; $("#iInfo").textContent=""; return;
+  }
+  const q=$("#iSearch").value.trim().toLowerCase();
+  const list=S.equip.filter(e=>!q||e.name.toLowerCase().includes(q)||e.group.toLowerCase().includes(q));
+  const done=S.equip.filter(e=>getVal(r,e.col)!=="").length;
+  $("#iInfo").textContent=`${done} cicli registrati in questo turno`;
+
+  let html="", lastG="";
+  for(const e of list){
+    if(e.group!==lastG){ lastG=e.group;
+      html+=`<div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+              margin:10px 0 3px;border-bottom:1px solid var(--line2)">${esc(e.group)}</div>`; }
+    const v=getVal(r,e.col), cip=cipOf(v);
+    const {last}=lastWash(e.col);
+    const ago = last ? Math.round((new Date()-last.date)/86400000) : null;
+    html+=`<div class="erow">
+      <div class="nm">${esc(e.name)}</div>
+      <div class="last">${last?`ultimo ${CIP[last.cip]?CIP[last.cip].n:"?"} · ${ddmm(last.date)} · ${ago} gg`:"mai"}</div>
+      <div class="picker" data-c="${e.col}">
+        ${[1,2,3,4,5].map(k=>`<button class="pk" data-v="${k}" aria-pressed="${cip===k}"
+          style="${cip===k?`background:${CIP[k].c};color:${CIP[k].t}`:""}">${k}</button>`).join("")}
+        <button class="pk x" data-v="" aria-pressed="${v===""}" title="nessun ciclo">–</button>
+      </div></div>`;
+  }
+  $("#iList").innerHTML=html;
+
+  $("#iCtrl").innerHTML=S.ctrls.map(c=>{
+    const v=(getVal(r,c.col)||"").toUpperCase();
+    return `<div class="erow"><div class="nm" title="${esc(c.name)}">${esc(c.short)}</div>
+      <div class="picker" data-c="${c.col}" data-ctrl="1">
+        <button class="pk" data-v="OK" aria-pressed="${v==="OK"}" style="${v==="OK"?"background:#1b6b3a;color:#fff":""}">OK</button>
+        <button class="pk" data-v="NON OK" aria-pressed="${v==="NON OK"}" style="width:auto;padding:0 6px;${v==="NON OK"?"background:var(--alert);color:#fff":""}">NO</button>
+        <button class="pk x" data-v="" aria-pressed="${v===""}">–</button>
+      </div></div>`;
+  }).join("");
+
+  $("#iOp").value=getVal(r,COL_OP);
+  $("#iNote").value=getVal(r,COL_NOTE);
+}
+$("#p-ins").addEventListener("click",e=>{
+  const b=e.target.closest(".pk"); if(!b) return;
+  const p=b.parentElement, r=curRow(); if(r===null) return;
+  setVal(r,p.dataset.c,b.dataset.v,!p.dataset.ctrl);
+  drawIns();
+});
+$("#iOp").addEventListener("change",()=>{const r=curRow(); if(r!==null) setVal(r,COL_OP,$("#iOp").value,false);});
+$("#iNote").addEventListener("change",()=>{const r=curRow(); if(r!==null) setVal(r,COL_NOTE,$("#iNote").value,false);});
+
+/* ============================================================
+   Salvataggio: patch dei soli valori dentro l'XML del foglio
+   ============================================================ */
+function cellXml(addr,style,v,num){
+  const s = style!==null&&style!==undefined ? ` s="${style}"` : "";
+  if(v==="") return `<c r="${addr}"${s}/>`;
+  if(num && /^-?\d+(\.\d+)?$/.test(v)) return `<c r="${addr}"${s}><v>${v}</v></c>`;
+  return `<c r="${addr}"${s} t="inlineStr"><is><t xml:space="preserve">${esc(v)}</t></is></c>`;
+}
+function patchRow(seg,addr,v,num){
+  const re=new RegExp(`<c r="${addr}"([^>]*?)(?:/>|>[\\s\\S]*?</c>)`);
+  const m=re.exec(seg);
+  if(m){
+    const st=/s="(\d+)"/.exec(m[1]);
+    return seg.slice(0,m.index)+cellXml(addr,st?st[1]:null,v,num)+seg.slice(m.index+m[0].length);
+  }
+  // cella assente: inserisco rispettando l'ordine di colonna
+  const col=/^([A-Z]+)/.exec(addr)[1], n=c2n(col);
+  const cells=[...seg.matchAll(/<c r="([A-Z]+)\d+"/g)];
+  const after=cells.find(c=>c2n(c[1])>n);
+  const pos = after ? after.index : seg.lastIndexOf("</row>");
+  seg = seg.slice(0,pos)+cellXml(addr,S.cellStyle[col],v,num)+seg.slice(pos);
+  const sp=/(<row [^>]*spans=")(\d+):(\d+)(")/.exec(seg);
+  if(sp) seg = seg.slice(0,sp.index)+sp[1]+Math.min(+sp[2],n)+":"+Math.max(+sp[3],n)+sp[4]+seg.slice(sp.index+sp[0].length);
+  return seg;
+}
+function buildXml(){
+  const byRow=new Map();
+  for(const [addr,e] of S.edits){
+    const r=+/\d+/.exec(addr)[0];
+    if(!byRow.has(r)) byRow.set(r,[]);
+    byRow.get(r).push([addr,e]);
+  }
+  const rows=[...byRow.keys()].sort((a,b)=>a-b);
+  const out=[]; let pos=0;
+  for(const r of rows){
+    const sp=S.rowSpan[r]; if(!sp) continue;
+    out.push(S.xml.slice(pos,sp[0]));
+    let seg=S.xml.slice(sp[0],sp[1]);
+    for(const [addr,e] of byRow.get(r)) seg=patchRow(seg,addr,e.v,e.num);
+    out.push(seg); pos=sp[1];
+  }
+  out.push(S.xml.slice(pos));
+  return out.join("");
+}
+$("#bSave").onclick=async ()=>{
+  if(!S.zip) return;
+  if(!S.edits.size && !confirm("Non ci sono modifiche. Scarico comunque una copia del file?")) return;
+  const b=$("#bSave"); b.disabled=true; const old=b.textContent; b.textContent="Preparazione…";
+  try{
+    S.zip.file(S.sheetPath, buildXml());
+    if(S.zip.file("xl/calcChain.xml")) S.zip.remove("xl/calcChain.xml"); // Excel lo ricostruisce
+    const blob=await S.zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:3},
+      mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    let name=S.fileName, diretto=false;
+    if(FSA && S.handle && await canWrite(S.handle)){
+      const w=await S.handle.createWritable(); await w.write(blob); await w.close(); diretto=true;
+    }else{
+      name=S.fileName.replace(/\.xlsx$/i,"")+"_agg_"+isoLocal(new Date())+".xlsx";
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    }
+    try{ await kvSet("file",{name:S.fileName,buf:await blob.arrayBuffer(),savedAt:Date.now()});
+         await kvDel("snap"); }catch(e){}
+    // le modifiche diventano il nuovo stato di riferimento
+    for(const [addr,e] of S.edits){
+      const r=+/\d+/.exec(addr)[0], col=/^([A-Z]+)/.exec(addr)[1];
+      S.data[r]=S.data[r]||{};
+      if(e.v==="") delete S.data[r][col]; else S.data[r][col]=e.v;
+    }
+    S.xml=buildXml(); parseRowSpansOnly(); S.edits.clear(); S.hist=[]; S.redo=[]; updDirty();
+    buildModel(); renderWall();
+    stamp(diretto?"scritto sul file su disco":"copia scaricata");
+    toast(diretto?"Salvato sul file originale":"File scaricato: "+name,5000);
+  }catch(err){ console.error(err); alert("Salvataggio non riuscito: "+err.message); }
+  finally{ b.disabled=false; b.textContent=old; }
+};
+function parseRowSpansOnly(){
+  S.rowSpan={}; const re=/<row r="(\d+)"[^>]*>[\s\S]*?<\/row>/g; let m;
+  while((m=re.exec(S.xml))) S.rowSpan[+m[1]]=[m.index,re.lastIndex];
+}
+</script>
+</body>
+</html>

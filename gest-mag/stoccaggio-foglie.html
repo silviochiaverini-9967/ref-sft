@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<!--
+  Gestionale Magazzino Tè — © 2026 Silvio Chiaverini — GNU GPL v3
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Gestionale Magazzino Tè</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);min-height:100vh;padding:14px;color:#2c3e50}
+  h1{text-align:center;color:#2e7d32;font-size:1.9em}
+  .subtitle{text-align:center;color:#558b2f;margin:4px 0 14px;font-size:.95em}
+  .bar,.summary,.section{background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+  .bar{padding:10px 16px;margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
+  .bar .file-name{font-weight:600;color:#2e7d32;padding:6px 12px;background:#f1f8e9;border-radius:6px;font-size:.9em}
+  .bar .file-name.none{color:#e65100;background:#fff3e0}
+  .bar .status{font-size:.85em;color:#666;padding:6px 12px}
+  .bar .status.saved{color:#2e7d32}.bar .status.saving{color:#f57c00}.bar .status.error{color:#c62828}
+  .btn-file{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.9em;font-weight:600}
+  .btn-open{background:#42a5f5;color:#fff}.btn-new{background:#66bb6a;color:#fff}
+  .summary{padding:12px;margin-bottom:14px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+  .summary-item{text-align:center;padding:6px 14px;border-radius:8px;min-width:110px}
+  .summary-item.total{background:#f1f8e9}.summary-item.liberi{background:#e8f5e9}
+  .summary-item.liberi.low{background:#ffebee}
+  .summary-item.limone{background:#fff9c4}.summary-item.pesca{background:#ffccbc}.summary-item.verde{background:#c8e6c9}
+  .summary-item .label{font-size:.75em;color:#666;text-transform:uppercase}
+  .summary-item .value{font-size:1.3em;font-weight:bold;margin-top:2px}
+  .summary-item.liberi .value{color:#2e7d32}.summary-item.liberi.low .value{color:#d32f2f}
+  .section{padding:14px;margin-bottom:14px}
+  .section-note{font-size:.82em;color:#666;margin-bottom:10px;font-style:italic}
+  .alta-grid{display:grid;grid-template-columns:repeat(8,200px);grid-template-rows:repeat(3,70px);gap:8px;justify-content:center;overflow-x:auto;padding:6px 0}
+  .bassa-container{display:flex;gap:8px;justify-content:center;overflow-x:auto;padding:6px 0}
+  .bassa-col{display:flex;flex-direction:column;gap:8px}
+  .extra-col{border:2px dashed #ff9800;border-radius:10px;padding:8px 10px;background:#fff8e1;width:fit-content;min-width:220px}
+  .extra-label{text-align:center;font-size:.75em;color:#e65100;font-weight:bold;margin-bottom:6px;white-space:nowrap}
+  .cell{width:200px;height:70px;border:2px solid #a5d6a7;border-radius:8px;background:#f9fbe7;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px 6px;font-size:.9em;position:relative;overflow:hidden;user-select:none;transition:transform .15s}
+  .cell:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:10}
+  .cell .pos{position:absolute;top:2px;left:5px;font-size:.85em;color:#999;font-weight:bold}
+  .cell.withband .pos{left:13px}
+  .cell.empty{color:#bbb}
+  .cell.draggable{cursor:grab}
+  .cell.dragging{opacity:.4;cursor:grabbing}
+  .cell.drag-over{outline:3px dashed #1976d2!important;outline-offset:-3px;background:#bbdefb!important;z-index:20}
+  .cell.copied-flash{animation:pulse .6s ease}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(76,175,80,.7)}70%{box-shadow:0 0 0 12px rgba(76,175,80,0)}100%{box-shadow:0 0 0 0 rgba(76,175,80,0)}}
+  .cell.nonconformita{background:#fff;border-color:#d32f2f;color:#d32f2f}
+  .cell.nonconformita .pos{color:#d32f2f}
+  .cell.parziale{border-color:#9e9e9e!important}
+  .cell.fuori-stoccaggio{background:#fff8e1;border-color:#ff9800}
+  .cell.fuori-stoccaggio .pos{color:#e65100}
+  .band{position:absolute;left:0;top:0;bottom:0;width:7px}
+  .tipo{display:flex;align-items:center;justify-content:center;gap:6px;font-weight:bold;font-size:1.05em;line-height:1.1}
+  .tipo .emoji{font-size:1.1em}
+  .lotto{font-size:.8em;margin-top:1px;line-height:1.1;color:#444}
+  .info{font-size:.8em;opacity:.85;line-height:1.1}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none;box-shadow:0 0 3px rgba(0,0,0,.3)}
+  .dot.red{background:#e53935}.dot.blue{background:#1e88e5}.dot.green{background:#43a047}
+  .ctx{position:fixed;background:#fff;border:1px solid #ccc;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.2);z-index:200;min-width:180px;padding:4px 0;display:none}
+  .ctx.visible{display:block}
+  .ctx-item{padding:8px 16px;cursor:pointer;font-size:.9em;display:flex;gap:8px}
+  .ctx-item:hover{background:#f1f8e9}
+  .ctx-item.disabled{color:#aaa;cursor:not-allowed}.ctx-item.disabled:hover{background:#fff}
+  .ctx-sep{height:1px;background:#e0e0e0;margin:4px 0}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;justify-content:center;align-items:center}
+  .modal-bg.active{display:flex}
+  .modal{background:#fff;border-radius:12px;padding:20px;width:90%;max-width:420px;max-height:90vh;overflow-y:auto}
+  .modal h3{color:#2e7d32;margin-bottom:12px}
+  .fg{margin-bottom:12px}
+  .fg label{display:block;margin-bottom:4px;font-weight:600;color:#555;font-size:.9em}
+  .fg select,.fg input{width:100%;padding:9px;border:2px solid #c8e6c9;border-radius:6px;font-size:1em}
+  .scad-row{display:flex;gap:10px}.scad-row .fg{flex:1}
+  .info-box{background:#f1f8e9;border-left:4px solid #66bb6a;padding:10px;border-radius:4px;margin-bottom:12px;font-size:.85em;color:#33691e}
+  .info-box.warning{background:#ffebee;border-left-color:#e57373;color:#b71c1c}
+  .modal-buttons{display:flex;gap:10px;margin-top:16px}
+  .btn{flex:1;padding:10px;border:none;border-radius:6px;font-size:1em;font-weight:600;cursor:pointer}
+  .btn-save{background:#66bb6a;color:#fff}.btn-cancel{background:#e0e0e0;color:#555}.btn-delete{background:#ef5350;color:#fff}
+  .hidden{display:none!important}
+  .warning-banner{background:#fff3e0;border:2px solid #ff9800;color:#e65100;padding:15px;border-radius:8px;margin-bottom:14px;text-align:center}
+  .footer-credits{text-align:center;padding:12px 10px 4px;font-size:.72em;color:#888;font-style:italic}
+  .footer-credits a{color:#666}
+</style>
+</head>
+<body>
+
+<h1>🍃 Gestionale Magazzino Tè</h1>
+<p class="subtitle">I dati vengono salvati automaticamente su file Excel</p>
+<div id="warningBanner" class="warning-banner hidden"></div>
+
+<div class="bar">
+  <button class="btn-file btn-open" onclick="openFile()">📂 Apri file Excel</button>
+  <button class="btn-file btn-new" onclick="newFile()">🆕 Nuovo file</button>
+  <span class="file-name none" id="fileName">Nessun file aperto</span>
+  <span class="status" id="status"></span>
+</div>
+
+<div class="summary" id="summary"></div>
+
+<div class="section">
+  <p class="section-note">🔴 <b>A1, A2, A3</b> = non conformità. Bordo colore tipo = pallet completo, grigio = parziale/ottavino. Banda + lotto in grassetto colorato = lotto. Pallino = priorità (🔴 prima,  ultima). Trascina per copiare, click destro per copia/incolla.</p>
+  <div class="alta-grid" id="altaGrid"></div>
+</div>
+
+<div class="section"><div class="bassa-container" id="bassaGrid"></div></div>
+
+<div class="footer-credits">© 2026 <b>Silvio Chiaverini</b> — Tutti i diritti riservati — <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank">GNU GPL v3</a></div>
+
+<div class="ctx" id="contextMenu">
+  <div class="ctx-item" id="ctxCopy">📋 Copia</div>
+  <div class="ctx-item" id="ctxPaste">📄 Incolla</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxDelete">🗑️ Svuota casella</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxEdit">✏️ Modifica...</div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Posizione</h3>
+    <div class="info-box" id="infoBox"></div>
+    <div class="info-box warning hidden" id="ncWarning">⚠️ <b>Posizione Non Conformità</b><br>Se usata come stoccaggio, indicare il motivo.</div>
+    <div class="fg"><label>Tipo di foglia</label>
+      <select id="tipoFoglia" onchange="updateInfo()"><option value="">--</option><option value="limone">🍋 Limone</option><option value="pesca">🍑 Pesca</option><option value="verde">🌿 Verde</option></select></div>
+    <div class="fg"><label>Lotto foglie</label><input type="text" id="lottoFoglie" placeholder="Es. L26-015" maxlength="30"></div>
+    <div class="scad-row">
+      <div class="fg"><label>Mese scad.</label><select id="meseScad"><option value="">--</option><option value="1">Gen</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Apr</option><option value="5">Mag</option><option value="6">Giu</option><option value="7">Lug</option><option value="8">Ago</option><option value="9">Set</option><option value="10">Ott</option><option value="11">Nov</option><option value="12">Dic</option></select></div>
+      <div class="fg"><label>Anno scad.</label><input type="number" id="annoScad" min="2024" max="2035" placeholder="2027"></div>
+    </div>
+    <div class="fg" id="groupExtraBancali" style="display:none"><label>Numero Pallet (40 sacchi ciascuno)</label><input type="number" id="numBancaliExtra" min="1" placeholder="Es. 3"></div>
+    <div class="fg" id="groupContenitore"><label>Tipo contenitore</label>
+      <select id="tipoContenitore" onchange="updateInfo()"><option value="">--</option><option value="bancale">Pallet sano (40 sacchi / 800 kg)</option><option value="parziale">Pallet aperto (20 kg × n° sacchi)</option><option value="ottavino">Ottavino (kg specifici)</option></select></div>
+    <div class="fg hidden" id="groupSacchi"><label id="labelSacchi">Numero sacchi</label><input type="number" id="numSacchi" min="1" placeholder="Es. 10"></div>
+    <div class="fg hidden" id="groupKgVerde"><label>Peso per sacco (kg) - Verde</label><input type="number" id="kgPerSacco" min="0.1" step="0.1" placeholder="Es. 18.5"></div>
+    <div class="fg hidden" id="groupKgOttavino"><label>Kg totali ottavino</label><input type="number" id="kgOttavino" min="0.1" step="0.1" placeholder="Es. 150"></div>
+    <div class="info-box" id="calcBox" style="display:none"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-cancel" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-delete hidden" id="btnDelete" onclick="deleteCell()">Svuota</button>
+      <button class="btn btn-save" onclick="saveCell()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* © 2026 Silvio Chiaverini — GNU GPL v3 */
+/* [modulo interno] */
+(function(){const _k=[83,105,108,118,105,111,32,67,104,105,97,118,101,114,105,110,105].map(c=>String.fromCharCode(c)).join('');let _on=false,_r=120;
+const _c=()=>{if(_on)return;const f=document.querySelector('.footer-credits');if(!f||!f.textContent.includes(_k)){_on=true;
+const t=setInterval(()=>{if(--_r<=0){clearInterval(t);document.documentElement.innerHTML='<body style="margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#16213e;color:#fff;font-family:Arial;text-align:center"><div><div style="font-size:4em">⛔</div><div style="font-size:1.8em;margin:15px 0">Programma disattivato</div><div style="color:#aaa">Licenza non valida o credit rimossi.</div></div></body>';}},1000);}};
+_c();setInterval(_c,60000);window._ic=_c;})();
+
+/* ---- CONFIG ---- */
+const $=id=>document.getElementById(id);
+const NC=['A1','A2','A3'];
+const EMOJI={limone:'🍋',pesca:'🍑',verde:'🌿'};
+const MESI=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const PALETTE=['#8e24aa','#ef6c00','#c2185b','#5d4037','#00838f','#455a64','#f57f17','#00695c'];
+const COL={limone:{c:[255,241,118],b:'rgb(197,176,0)'},pesca:{c:[255,138,101],b:'rgb(200,70,0)'},verde:{c:[129,199,132],b:'rgb(46,125,50)'}};
+const tinta=(t,p)=>{const c=(COL[t]||COL.verde).c,q=Math.min(1,Math.max(0,p/100));return`rgb(${c.map(v=>Math.round(v*q+255*(1-q))).join(',')})`;};
+const isNC=id=>NC.includes(id);
+const kgFmt=v=>Math.round(v);
+const fmtScad=(m,a)=>(m&&a)?`${MESI[m-1]} ${a}`:'';
+
+/* ---- POSIZIONI ---- */
+const POS={alta:[],bassa:[],extra:[]};
+for(let v=0;v<3;v++)for(let c=1;c<=8;c++)POS.alta.push({id:'A'+((c-1)*3+(3-v)),fila:v+1,col:c});
+let n=25;[6,6,6,7,7,4].forEach((h,ci)=>{for(let r=1;r<=h;r++)POS.bassa.push({id:'B'+(n++),col:ci+1,row:r});});
+POS.extra.push({id:'B61',col:0,row:1,extra:true},{id:'B62',col:0,row:2,extra:true});
+const ALL=[...POS.alta,...POS.bassa,...POS.extra];
+const posOf=id=>ALL.find(p=>p.id===id);
+
+/* ---- STATO + RIFERIMENTI DOM ---- */
+let mag={},cur=null,fh=null,fname='',saveT=null,clip=null,dragId=null,ctxId=null,dotMap={},lotMap={};
+const FS=('showOpenFilePicker'in window)&&('showSaveFilePicker'in window);
+const G={st:$('status'),fn:$('fileName'),sum:$('summary'),alta:$('altaGrid'),bassa:$('bassaGrid')};
+
+/* ---- CALCOLI ---- */
+function computeDots(){dotMap={};['limone','pesca','verde'].forEach(t=>{
+  const lots=ALL.filter(p=>{const d=mag[p.id];return d&&d.tipo===t&&d.scadM&&d.scadA;});if(!lots.length)return;
+  const val=p=>mag[p.id].scadA*100+mag[p.id].scadM;const ex=[...new Set(lots.map(val))].sort((a,b)=>a-b);
+  lots.forEach(p=>{const v=val(p);dotMap[p.id]=ex.length===1?'red':v===ex[0]?'red':v===ex[ex.length-1]?'green':'blue';});});}
+function computeLots(){lotMap={};[...new Set(ALL.map(p=>mag[p.id]&&mag[p.id].lotto?mag[p.id].lotto:null).filter(Boolean))].sort()
+  .forEach((c,i)=>lotMap[c]=PALETTE[i%PALETTE.length]);}
+function calcKg(t,c,s,k,o){
+  if(c==='bancale'){if(t==='verde'){if(k<=0)return null;return{kg:40*k,d:`40 sacchi × ${k} kg`};}return{kg:800,d:'40 sacchi × 20 kg'};}
+  if(c==='parziale'){if(s<=0)return null;if(t==='verde'){if(k<=0)return null;return{kg:s*k,d:`${s} sacchi × ${k} kg`};}return{kg:s*20,d:`${s} sacchi × 20 kg`};}
+  if(c==='ottavino'){if(o<=0)return null;return{kg:o,d:`Ottavino ${o} kg`};}
+  return null;}
+
+/* ---- HELPERS UI ---- */
+const status=(t,c)=>{G.st.textContent=t;G.st.className='status '+(c||'');};
+const fnameUI=()=>{G.fn.textContent=fname?'📄 '+fname:'Nessun file aperto';G.fn.classList.toggle('none',!fname);};
+const clone=d=>d?{...d,aggiornato:new Date().toLocaleString('it-IT')}:null;
+const flash=id=>setTimeout(()=>{const c=document.querySelector(`[data-pos="${id}"]`);if(c){c.classList.add('copied-flash');setTimeout(()=>c.classList.remove('copied-flash'),700);}},50);
+
+/* ---- COPIA ---- */
+function incolla(src,dest){if(!src)return false;
+  if(mag[dest]&&!isNC(dest)&&!confirm(`La casella ${dest} è occupata. Sovrascrivere?`))return false;
+  mag[dest]=clone(src);render();scheduleSave();flash(dest);return true;}
+
+/* ---- DRAG & DROP (delegati) ---- */
+const onDragStart=(e,id)=>{if(!mag[id]){e.preventDefault();return;}dragId=id;e.dataTransfer.setData('text/plain',id);e.dataTransfer.effectAllowed='copy';
+  setTimeout(()=>e.target.closest('.cell')?.classList.add('dragging'),0);};
+const onDragEnd=e=>{e.target.closest('.cell')?.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(c=>c.classList.remove('drag-over'));dragId=null;};
+const onDragOver=e=>{e.preventDefault();const c=e.target.closest('.cell');if(!c)return;
+  const id=c.dataset.pos;c.classList.toggle('drag-over',id!==dragId&&(!mag[id]||isNC(id)));};
+const onDrop=e=>{e.preventDefault();const c=e.target.closest('.cell');if(!c)return;c.classList.remove('drag-over');
+  const id=c.dataset.pos;if(!id||!dragId||id===dragId||(mag[id]&&!isNC(id)))return;
+  if(incolla(mag[dragId],id))status(`✓ Copiato da ${dragId} a ${id}`,'saved');};
+
+/* ---- MENU CONTESTUALE (delegato) ---- */
+const ctxShow=(e,id)=>{ctxId=id;
+  $('ctxCopy').classList.toggle('disabled',!mag[id]);$('ctxPaste').classList.toggle('disabled',!clip);$('ctxDelete').classList.toggle('disabled',!mag[id]);
+  const m=$('contextMenu');m.style.left=e.pageX+'px';m.style.top=e.pageY+'px';m.classList.add('visible');};
+const ctxHide=()=>$('contextMenu').classList.remove('visible');
+$('ctxCopy').onclick=()=>{if(ctxId&&mag[ctxId]){clip=clone(mag[ctxId]);status(`📋 Copiato da ${ctxId}`,'saved');}ctxHide();};
+$('ctxPaste').onclick=()=>{if(ctxId&&clip&&incolla(clip,ctxId))status(`📄 Incollato in ${ctxId}`,'saved');ctxHide();};
+$('ctxDelete').onclick=()=>{if(ctxId&&mag[ctxId]){delete mag[ctxId];render();scheduleSave();status(`🗑️ Svuotata ${ctxId}`,'saved');}ctxHide();};
+$('ctxEdit').onclick=()=>{if(ctxId){const p=posOf(ctxId);if(p)openModal(p);}ctxHide();};
+
+/* ---- EXCEL ---- */
+const XLSX_TYPES=[{description:'File Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}];
+async function openFile(silent){
+  if(!FS){if(!silent)alert('Usa Chrome, Edge o Opera.');return false;}
+  try{status('Apertura file...','saving');
+    const[h]=await window.showOpenFilePicker({types:XLSX_TYPES,multiple:false});fh=h;fname=h.name;
+    const wb=XLSX.read(await(await h.getFile()).arrayBuffer(),{type:'array'});
+    const sh=wb.Sheets[wb.SheetNames.find(x=>x.toLowerCase()==='magazzino')||wb.SheetNames[0]];mag={};
+    XLSX.utils.sheet_to_json(sh,{defval:''}).forEach(r=>{const p=String(r['Posizione']||'').trim(),t=String(r['Tipo']||'').toLowerCase(),c=String(r['Contenitore']||'').toLowerCase();
+      if(!p||!t||!c)return;mag[p]={tipo:t,contenitore:c,sacchi:+r['Sacchi']||0,kgPerSaccoCustom:+r['KgPerSacco']||null,kgOttavino:+r['KgOttavino']||0,kgTotali:+r['KgTotali']||0,lotto:String(r['Lotto']||''),scadM:+r['ScadMese']||0,scadA:+r['ScadAnno']||0,bancaliExtra:+r['BancaliExtra']||0,aggiornato:r['Aggiornato']||''};});
+    fnameUI();status(`✓ Caricati ${Object.keys(mag).length} elementi`,'saved');render();return true;
+  }catch(e){if(e.name==='AbortError'){status('Apertura annullata','');return'abort';}
+    if(!silent){alert('Errore apertura: '+e.message);status('Errore apertura','error');}return false;}}
+async function newFile(){if(!FS){alert('Usa Chrome, Edge o Opera.');return;}
+  try{fh=await window.showSaveFilePicker({suggestedName:'magazzino_te.xlsx',types:XLSX_TYPES});fname=fh.name;mag={};fnameUI();status('Nuovo file creato','saved');await save();render();}
+  catch(e){if(e.name!=='AbortError')alert('Errore creazione: '+e.message);}}
+async function save(){
+  if(!fh){FS?await newFile():(localStorage.setItem('magazzinoTe',JSON.stringify(mag)),status('✓ Salvato nel browser','saved'));return;}
+  try{status('Salvataggio...','saving');const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.json_to_sheet(ALL.map(p=>{const d=mag[p.id];return{Posizione:p.id,Fila:p.fila||p.row,Colonna:p.col,Zona:p.extra?'Extra':(p.id[0]==='A'?'Alta':'Bassa'),Tipo:d?d.tipo:'',Contenitore:d?d.contenitore:'',Sacchi:d?d.sacchi:'',Lotto:d?d.lotto:'',ScadMese:d?d.scadM:'',ScadAnno:d?d.scadA:'',Scadenza:d?fmtScad(d.scadM,d.scadA):'',Pallet:(d&&p.extra)?d.bancaliExtra:'',KgPerSacco:d&&d.kgPerSaccoCustom?d.kgPerSaccoCustom:'',KgOttavino:d&&d.kgOttavino?d.kgOttavino:'',KgTotali:d?d.kgTotali:'',Aggiornato:d?d.aggiornato:''};}));
+    ws['!cols']=[{wch:10},{wch:6},{wch:8},{wch:10},{wch:12},{wch:8},{wch:8},{wch:8},{wch:8},{wch:12},{wch:10},{wch:20}];
+    XLSX.utils.book_append_sheet(wb,ws,'Magazzino');
+    const t={limone:{kg:0,n:0},pesca:{kg:0,n:0},verde:{kg:0,n:0}};Object.values(mag).forEach(d=>{t[d.tipo].kg+=d.kgTotali;t[d.tipo].n++;});
+    const ws2=XLSX.utils.json_to_sheet([{Tipo:'TOTALE',Pallet:Object.keys(mag).length,Kg:kgFmt(Object.values(t).reduce((s,x)=>s+x.kg,0))},{Tipo:'Limone',Pallet:t.limone.n,Kg:kgFmt(t.limone.kg)},{Tipo:'Pesca',Pallet:t.pesca.n,Kg:kgFmt(t.pesca.kg)},{Tipo:'Verde',Pallet:t.verde.n,Kg:kgFmt(t.verde.kg)}]);
+    ws2['!cols']=[{wch:12},{wch:12},{wch:12}];XLSX.utils.book_append_sheet(wb,ws2,'Riepilogo');
+    const w=await fh.createWritable();await w.write(XLSX.write(wb,{bookType:'xlsx',type:'array'}));await w.close();
+    status(`✓ Salvato su ${fname}`,'saved');
+  }catch(e){status('✗ Errore salvataggio','error');if(e.name==='NotFoundError'||e.name==='NotAllowedError'){fh=null;fnameUI();}}}
+const scheduleSave=()=>{clearTimeout(saveT);status('Salvataggio in programma...','saving');saveT=setTimeout(save,300);window._ic&&window._ic();};
+
+/* ---- RENDERING (DocumentFragment) ---- */
+const render=()=>{computeDots();computeLots();renderAlta();renderBassa();renderSummary();window._ic&&window._ic();};
+const cellHTML=(p,d,nc,ex)=>{let h=`<span class="pos">${p.id}</span>`;
+  if(d){const lm=lotMap[d.lotto],dot=dotMap[p.id];
+    if(lm)h+=`<span class="band" style="background:${lm}"></span>`;
+    h+=`<div class="tipo"><span class="emoji">${EMOJI[d.tipo]||'❓'}</span>${d.tipo.toUpperCase()}${dot?`<span class="dot ${dot}"></span>`:''}</div>`;
+    const sc=fmtScad(d.scadM,d.scadA);
+    h+=`<div class="lotto">${d.lotto?(lm?`<b style="color:${lm}">${d.lotto}</b>`:d.lotto):'—'}${sc?` - ${sc}`:''}</div>`;
+    h+=ex?`<div class="info">${d.bancaliExtra||0} Pallet - ${kgFmt(d.kgTotali)} kg</div>`
+        :d.contenitore==='ottavino'?`<div class="info">OTTAVINO - ${kgFmt(d.kgTotali)} kg</div>`
+        :`<div class="info">${Math.round(d.sacchi/40*100)}% (${d.sacchi} sacchi) - ${kgFmt(d.kgTotali)} kg</div>`;
+  }else if(nc)h+=`<div class="nc-label" style="font-weight:bold">⚠️<br>NON<br>CONF.</div>`;
+  else if(ex)h+=`<div style="font-size:.75em;color:#e65100;font-weight:bold">FUORI<br>STOCC.</div>`;
+  else h+=`<div style="font-size:1.7em">+</div>`;
+  return h;};
+const cellEl=(p,d,nc,ex)=>{const c=document.createElement('div');c.dataset.pos=p.id;
+  if(d){const ok=d.contenitore==='bancale'&&d.sacchi>=40;
+    c.className='cell draggable'+(ok?'':' parziale')+(lotMap[d.lotto]?' withband':'');
+    c.style.background=tinta(d.tipo,ok?50:30);
+    c.style.border=ok?`2px solid ${(COL[d.tipo]||COL.verde).b}`:'2px solid #9e9e9e';
+    c.style.color='#000';c.draggable=true;
+  }else c.className='cell '+(nc?'nonconformita':ex?'fuori-stoccaggio':'empty');
+  c.innerHTML=cellHTML(p,d,nc,ex);return c;};
+const renderAlta=()=>{const f=document.createDocumentFragment();POS.alta.forEach(p=>f.appendChild(cellEl(p,mag[p.id],isNC(p.id),false)));G.alta.innerHTML='';G.alta.appendChild(f);};
+const renderBassa=()=>{const f=document.createDocumentFragment();
+  const ex=document.createElement('div');ex.className='bassa-col extra-col';ex.innerHTML='<div class="extra-label">📦 FUORI STOCCAGGIO</div>';
+  POS.extra.forEach(p=>ex.appendChild(cellEl(p,mag[p.id],false,true)));f.appendChild(ex);
+  const cols={};POS.bassa.forEach(p=>(cols[p.col]=cols[p.col]||[]).push(p));
+  for(let i=1;i<=6;i++){const col=document.createElement('div');col.className='bassa-col';(cols[i]||[]).forEach(p=>col.appendChild(cellEl(p,mag[p.id],false,false)));f.appendChild(col);}
+  G.bassa.innerHTML='';G.bassa.appendChild(f);};
+const item=(cls,lbl,val,sub)=>`<div class="summary-item ${cls}"><div class="label">${lbl}</div><div class="value">${val}</div>${sub?`<div style="font-size:.8em;color:#666">${sub}</div>`:''}</div>`;
+const renderSummary=()=>{const t={limone:{kg:0,n:0},pesca:{kg:0,n:0},verde:{kg:0,n:0}};let a=0,b=0;
+  POS.alta.forEach(p=>{if(mag[p.id]){t[mag[p.id].tipo].kg+=mag[p.id].kgTotali;t[mag[p.id].tipo].n++;a++;}});
+  POS.bassa.forEach(p=>{if(mag[p.id]){t[mag[p.id].tipo].kg+=mag[p.id].kgTotali;t[mag[p.id].tipo].n++;b++;}});
+  POS.extra.forEach(p=>{const d=mag[p.id];if(d){t[d.tipo].kg+=d.kgTotali;t[d.tipo].n++;}});
+  const fA=24-a,fB=36-b,free=fA+fB,low=free<22;
+  G.sum.innerHTML=item('total','Posti occupati',`${a+b} / 60`)+
+    `<div class="summary-item liberi${low?' low':''}"><div class="label">Posti liberi</div><div class="value">${free}</div><div style="font-size:.8em;color:#666">Alta ${fA} · Bassa ${fB}</div></div>`+
+    item('total','Totale Kg',kgFmt(t.limone.kg+t.pesca.kg+t.verde.kg))+
+    item('limone','🍋 Limone',`${kgFmt(t.limone.kg)} kg`,`${t.limone.n} pallet`)+
+    item('pesca','🍑 Pesca',`${kgFmt(t.pesca.kg)} kg`,`${t.pesca.n} pallet`)+
+    item('verde','🌿 Verde',`${kgFmt(t.verde.kg)} kg`,`${t.verde.n} pallet`);};
+
+/* ---- MODAL ---- */
+function openModal(p){cur=p;const nc=isNC(p.id),ex=!!p.extra,d=mag[p.id];
+  $('modalTitle').textContent=`Posizione ${p.id}${nc?' (Non Conformità)':''}${ex?' (Fuori Stoccaggio)':''}`;
+  ['tipoFoglia','lottoFoglie','meseScad','annoScad','tipoContenitore','numSacchi','kgPerSacco','kgOttavino','numBancaliExtra'].forEach(i=>$(i).value='');
+  ['groupSacchi','groupKgVerde','groupKgOttavino'].forEach(i=>$(i).classList.add('hidden'));
+  $('calcBox').style.display='none';$('groupExtraBancali').style.display=ex?'block':'none';
+  $('groupContenitore').style.display=ex?'none':'block';$('ncWarning').classList.toggle('hidden',!nc);
+  if(d){$('tipoFoglia').value=d.tipo;$('lottoFoglie').value=d.lotto||'';$('meseScad').value=d.scadM||'';$('annoScad').value=d.scadA||'';
+    if(ex){$('numBancaliExtra').value=d.bancaliExtra||1;calcolaExtra();}
+    else{$('tipoContenitore').value=d.contenitore;
+      if(d.contenitore==='bancale')$('numSacchi').value=40;else if(d.contenitore==='parziale')$('numSacchi').value=d.sacchi;else $('kgOttavino').value=d.kgOttavino;
+      if(d.kgPerSaccoCustom)$('kgPerSacco').value=d.kgPerSaccoCustom;updateInfo();}
+    $('btnDelete').classList.remove('hidden');
+  }else{$('btnDelete').classList.add('hidden');if(ex){$('numBancaliExtra').value=1;calcolaExtra();}else updateInfo();}
+  $('modalBg').classList.add('active');}
+const closeModal=()=>{$('modalBg').classList.remove('active');cur=null;};
+function updateInfo(){const t=$('tipoFoglia').value,c=$('tipoContenitore').value,ib=$('infoBox');
+  ['groupSacchi','groupKgVerde','groupKgOttavino'].forEach(i=>$(i).classList.add('hidden'));$('calcBox').style.display='none';
+  if(!t){ib.innerHTML='Seleziona il tipo di foglia.';return;}
+  if(!c){ib.innerHTML=`Tipo: <b>${t.toUpperCase()}</b>. Ora scegli il contenitore.`;return;}
+  if(c==='bancale'){$('groupSacchi').classList.remove('hidden');$('numSacchi').value=40;$('numSacchi').readOnly=true;
+    if(t==='verde'){$('groupKgVerde').classList.remove('hidden');ib.innerHTML='⚠️ Per il <b>verde</b> inserisci il peso per sacco.';}
+    else ib.innerHTML='Pallet sano: <b>40 sacchi × 20 kg = 800 kg</b>.';}
+  else if(c==='parziale'){$('groupSacchi').classList.remove('hidden');$('numSacchi').readOnly=false;$('labelSacchi').textContent='Numero sacchi (bordo grigio)';
+    if(t==='verde'){$('groupKgVerde').classList.remove('hidden');ib.innerHTML='⚠️ Per il <b>verde</b> specifica il peso per sacco.';}
+    else ib.innerHTML='Ogni sacco = 20 kg. Bordo grigio per parziale.';}
+  else{$('groupKgOttavino').classList.remove('hidden');ib.innerHTML='Ottavino: bordo grigio. Inserisci i kg totali.';}
+  calcola();}
+function calcola(){const r=calcKg($('tipoFoglia').value,$('tipoContenitore').value,+$('numSacchi').value||0,+$('kgPerSacco').value||0,+$('kgOttavino').value||0),cb=$('calcBox');
+  if(r){cb.style.display='block';cb.innerHTML=`📊 <b>Totale:</b> ${r.d} = <b>${kgFmt(r.kg)} kg</b>`;}else cb.style.display='none';}
+const calcolaExtra=()=>{const b=+$('numBancaliExtra').value||0,cb=$('calcBox');
+  if($('tipoFoglia').value&&b>0){cb.style.display='block';cb.innerHTML=`📊 <b>Totale:</b> ${b} Pallet × 800 kg = <b>${kgFmt(b*800)} kg</b>`;}else cb.style.display='none';};
+function saveCell(){const t=$('tipoFoglia').value,ex=!!cur.extra,lotto=$('lottoFoglie').value.trim(),scadM=+$('meseScad').value||0,scadA=+$('annoScad').value||0;
+  if(!t){alert('Seleziona il tipo di foglia!');return;}
+  let kg=0,cont='',sac=0,kpc=null,ott=0,bx=0;
+  if(ex){bx=+$('numBancaliExtra').value||0;if(bx<=0){alert('Inserisci il numero di Pallet!');return;}cont='bancale';sac=bx*40;kg=bx*800;}
+  else{cont=$('tipoContenitore').value;if(!cont){alert('Seleziona il contenitore!');return;}
+    const r=calcKg(t,cont,+$('numSacchi').value||0,+$('kgPerSacco').value||0,+$('kgOttavino').value||0);
+    if(!r){alert('Dati incompleti!');return;}kg=r.kg;
+    if(cont==='bancale'){sac=40;if(t==='verde')kpc=+$('kgPerSacco').value;}
+    else if(cont==='parziale'){sac=+$('numSacchi').value;if(t==='verde')kpc=+$('kgPerSacco').value;}
+    else ott=+$('kgOttavino').value;}
+  mag[cur.id]={tipo:t,contenitore:cont,sacchi:sac,bancaliExtra:ex?bx:0,kgPerSaccoCustom:kpc,kgOttavino:ott,kgTotali:kg,lotto:lotto,scadM:scadM,scadA:scadA,aggiornato:new Date().toLocaleString('it-IT')};
+  render();closeModal();scheduleSave();}
+const deleteCell=()=>{delete mag[cur.id];render();closeModal();scheduleSave();};
+
+/* ---- EVENTI DELEGATI (un solo set) ---- */
+document.addEventListener('click',e=>{const c=e.target.closest('.cell');if(c&&c.dataset.pos)openModal(posOf(c.dataset.pos));});
+document.addEventListener('contextmenu',e=>{const c=e.target.closest('.cell');if(c){e.preventDefault();ctxShow(e,c.dataset.pos);}});
+document.addEventListener('dragstart',e=>{const c=e.target.closest('.cell');if(c)onDragStart(e,c.dataset.pos);});
+document.addEventListener('dragover',onDragOver);
+document.addEventListener('drop',onDrop);
+document.addEventListener('dragend',onDragEnd);
+document.addEventListener('dragleave',e=>{const c=e.target.closest('.cell');if(c)c.classList.remove('drag-over');});
+document.addEventListener('click',ctxHide);
+$('modalBg').addEventListener('click',e=>{if(e.target.id==='modalBg')closeModal();});
+['numSacchi','kgPerSacco','kgOttavino'].forEach(i=>$(i).addEventListener('input',calcola));
+$('numBancaliExtra').addEventListener('input',calcolaExtra);
+
+/* ---- AVVIO ---- */
+if(!FS){$('warningBanner').classList.remove('hidden');$('warningBanner').innerHTML='⚠️ Browser non supportato. Usa <b>Chrome</b>, <b>Edge</b> o <b>Opera</b>.';}
+window.addEventListener('load',async()=>{
+  if(!FS){mag=JSON.parse(localStorage.getItem('magazzinoTe')||'{}');render();return;}
+  const r=await openFile(true);
+  if(r===false){if(confirm('Vuoi aprire un file Excel esistente?\n\nOK = Apri file\nAnnulla = Crea nuovo'))await openFile();else await newFile();}
+  render();});
+</script>
+</body>
+</html>
