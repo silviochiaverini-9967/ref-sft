@@ -141,13 +141,15 @@ td.free{width:110px;min-width:110px;max-width:110px;padding:2px 5px;font-size:10
 td.ctrl{width:26px;min-width:26px;max-width:26px;text-align:center;font-size:9px;cursor:pointer;overflow:hidden}
 .wknd td.stickA{color:#8a3a00}
 /* evidenziazione riga / colonna: agisce sulle cornici, i colori CIP restano intatti */
-tr.selr td{border-top:2px solid var(--sel);border-bottom:2px solid var(--sel)}
+/* cornici disegnate con box-shadow: non occupano larghezza, quindi non
+   spostano le colonne e restano visibili su tutti e due i lati */
+tr.selr td{box-shadow:inset 0 2px 0 var(--sel),inset 0 -2px 0 var(--sel)}
 tr.selr td.cell,tr.selr td.ctrl,tr.selr td.free,tr.selr td.stickB{background:var(--selbg)}
-tr.selr td.stickA,tr.selr td.stickB{color:var(--sel)}
-td.selc{border-left:2px solid var(--sel);border-right:2px solid var(--sel);background:var(--selbg)}
-th.selc{background:var(--selbg);border-left:2px solid var(--sel);border-right:2px solid var(--sel)}
+tr.selr td.stickA,tr.selr td.stickB{color:var(--sel);font-weight:700}
+td.selc{box-shadow:inset 2px 0 0 var(--sel),inset -2px 0 0 var(--sel);background:var(--selbg)}
+th.selc{box-shadow:inset 2px 0 0 var(--sel),inset -2px 0 0 var(--sel);background:var(--selbg)}
 th.selc .vh{color:var(--sel);text-decoration:underline;text-underline-offset:2px}
-td.cross{box-shadow:inset 0 0 0 2px var(--sel)}
+tr.selr td.selc,td.cross{box-shadow:inset 0 0 0 2px var(--sel)}
 table.reg thead tr.h2 th{cursor:pointer}
 table.reg thead tr.h2 th:hover .vh{color:var(--sel)}
 td.stickB{cursor:pointer}
@@ -226,6 +228,10 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
 .kpi.bad{background:var(--alert-bg);border-color:#f0c2c2}
 .kpi.bad .lb,.kpi.bad .bg,.kpi.bad .sm{color:var(--alert)}
 .distr{display:flex;height:18px;border:1px solid var(--line);border-radius:2px;overflow:hidden}
+.distn{display:flex;flex-wrap:wrap;column-gap:2cm;row-gap:9px;margin-top:6px;
+  font-size:11.5px;color:var(--muted)}
+.distn>span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.distn b{color:var(--ink);font-size:12.5px}
 .dfil{display:flex;gap:4px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line2)}
 .dfil button{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:var(--r);padding:4px 10px;font-size:12.5px}
 .dfil input[type=date]{font:inherit;font-size:12.5px;padding:3px 6px;border:1px solid var(--line);border-radius:var(--r)}
@@ -344,7 +350,7 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
         <label for="rGrp">Reparto</label>
         <select id="rGrp"><option value="">tutti</option></select>
       </span>
-      <span class="tip" data-tip="Mostra solo i turni in cui compare l'operatore scelto. L'elenco è ricavato dai nomi già presenti nel file; quando in un turno ci sono più operatori, il turno compare per ognuno di loro.">
+      <span class="tip" id="tipOp" data-tip="Mostra solo i turni in cui compare l'operatore scelto. Quando in un turno ci sono più operatori, il turno compare per ognuno di loro.">
         <label for="rOp">Operatore</label>
         <select id="rOp"><option value="">tutti</option></select>
       </span>
@@ -444,7 +450,8 @@ const GROUPS = [
 ];
 const CTRL_FROM="BB", CTRL_TO="BG", COL_OP="BH", COL_NOTE="BI";
 const COL_DATE="B", COL_TURNO="D";
-const ROW0 = 5;                 // prima riga dati
+const ROW0 = 5;
+const ANNI_OP = 3;              // profondità dell'elenco operatori                 // prima riga dati
 const SHEET_NAME = "sanificazioni";
 const TURNI = ["I°","II°","III°"];
 
@@ -723,14 +730,23 @@ function buildModel(){
   }
   // ultima giornata con dati
   S.lastDayIdx=-1;
-  const freq=new Map();
   S.days.forEach((d,i)=>{
     for(const r of d.rows){
-      const rec=S.data[r]; if(!rec) continue;
-      if(S.equip.some(e=>rec[e.col]!==undefined)) S.lastDayIdx=i;
-      if(rec[COL_OP]) for(const t of opTokens(rec[COL_OP])) freq.set(t,(freq.get(t)||0)+1);
+      const rec=S.data[r];
+      if(rec && S.equip.some(e=>rec[e.col]!==undefined)) S.lastDayIdx=i;
     }
   });
+  // elenco operatori limitato agli ultimi ANNI_OP anni
+  const rd = S.lastDayIdx>=0 ? S.days[S.lastDayIdx].date : new Date();
+  S.opSince = new Date(Date.UTC(rd.getUTCFullYear()-ANNI_OP, rd.getUTCMonth(), rd.getUTCDate()));
+  const freq=new Map();
+  for(const d of S.days){
+    if(d.date < S.opSince) continue;
+    for(const r of d.rows){
+      const rec=S.data[r]; if(!rec || !rec[COL_OP]) continue;
+      for(const t of opTokens(rec[COL_OP])) freq.set(t,(freq.get(t)||0)+1);
+    }
+  }
   buildOperators(freq);
 }
 /* ---------- normalizzazione dei nomi operatore ----------
@@ -1126,8 +1142,9 @@ function drawDet(){
       <b style="color:var(--ink)">${sel.tot}</b> cicli · ${esc(etich)}${sel.first?` · dal ${ddmm(sel.first)} al ${ddmm(sel.lastd)}`:""}
       ${sel.tot!==st.tot?` <span style="color:var(--muted)">(su ${st.tot} totali)</span>`:""}</div>
     <div class="distr">${segs}</div>
-    <div style="font-size:11.5px;color:var(--muted);margin-top:5px">
-      ${[1,2,3,4,5].map(k=>`<span class="pill" style="background:${CIP[k].c};color:${CIP[k].t}">${k}</span>&nbsp;<b style="color:var(--ink)">${sel.dist[k]}</b>`).join("&nbsp;&nbsp; ")}${sel.dist.x?`&nbsp;&nbsp; <b style="color:var(--ink)">${sel.dist.x}</b> anomali`:""}</div>
+      <div class="distn">${[1,2,3,4,5].map(k=>
+        `<span><span class="pill" style="background:${CIP[k].c};color:${CIP[k].t}">${k}</span><b>${sel.dist[k]}</b></span>`).join("")}${
+        sel.dist.x?`<span><b>${sel.dist.x}</b> anomali</span>`:""}</div></div>
   </div>
 
   <div class="dfil"><span style="font-size:11.5px;color:var(--muted);margin-right:4px">Mostra</span>
@@ -1172,6 +1189,10 @@ function initReg(){
   };
   $("#rOp").innerHTML=`<option value="">tutti gli operatori</option>`+
     S.operators.map(o=>`<option value="${esc(o.name)}">${esc(o.name)} (${o.n})</option>`).join("");
+  $("#tipOp").dataset.tip=`Mostra solo i turni in cui compare l'operatore scelto. Quando in un turno `+
+    `ci sono più operatori, il turno compare per ognuno di loro. L'elenco riporta i ${S.operators.length} `+
+    `nomi comparsi dal ${ddmm(S.opSince)} in poi, con accanto il numero di turni; le grafie diverse `+
+    `dello stesso cognome sono ricondotte a una sola voce.`;
   ["rGrp","rOp"].forEach(id=>$("#"+id).addEventListener("change",()=>{ clearSel(); drawReg(); }));
   ["rFrom","rTo"].forEach(id=>$("#"+id).addEventListener("change",()=>{
     clearSel();
