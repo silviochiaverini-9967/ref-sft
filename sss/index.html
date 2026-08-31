@@ -134,15 +134,20 @@ td.stickA{border-right:1px solid var(--line)}
 td.stickB{border-right:1px solid var(--line);text-align:center;color:var(--muted)}
 tr.d0 td.stickA,tr.d0 td.stickB{border-top:2px solid var(--line)}
 tr.today td.stickA{box-shadow:inset 3px 0 0 #0b64c0}
-td.cell{width:26px;min-width:26px;max-width:26px;text-align:center;font-weight:700;font-size:11px;cursor:pointer;height:22px}
-td.cell:hover{outline:2px solid #0b64c0;outline-offset:-2px}
+td.cell{width:26px;min-width:26px;max-width:26px;text-align:center;font-weight:700;font-size:11px;cursor:default;height:22px}
+td.cell:hover{outline:1px solid var(--muted);outline-offset:-1px}
 td.cell.edited{box-shadow:inset 0 0 0 2px #0b64c0}
-td.free{width:110px;min-width:110px;max-width:110px;padding:2px 5px;font-size:10px;cursor:text;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-td.ctrl{width:26px;min-width:26px;max-width:26px;text-align:center;font-size:9px;cursor:pointer;overflow:hidden}
+td.free{width:110px;min-width:110px;max-width:110px;padding:2px 5px;font-size:10px;cursor:default;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td.ctrl{width:26px;min-width:26px;max-width:26px;text-align:center;font-size:9px;cursor:default;overflow:hidden}
 .wknd td.stickA{color:#8a3a00}
 /* evidenziazione riga / colonna: agisce sulle cornici, i colori CIP restano intatti */
 /* cornici disegnate con box-shadow: non occupano larghezza, quindi non
    spostano le colonne e restano visibili su tutti e due i lati */
+/* colonna di un'attrezzatura fuori soglia: da lavare prima dell'utilizzo */
+th.overc{position:relative;background:#fbdcdc!important}
+th.overc .vh{color:var(--alert)}
+th.overc::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--alert)}
+td.overc{background:#fdecec}
 tr.selr td{box-shadow:inset 0 2px 0 var(--sel),inset 0 -2px 0 var(--sel)}
 tr.selr td.cell,tr.selr td.ctrl,tr.selr td.free,tr.selr td.stickB{background:var(--selbg)}
 tr.selr td.stickA,tr.selr td.stickB{color:var(--sel);font-weight:700}
@@ -249,10 +254,11 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
 <body>
 
 <div class="topbar">
-  <div class="brand"><b>Sanificazioni Sala Sciroppi</b><span>SR16 P07 · Sulmona</span></div>
+  <div class="brand"><b>Sanificazioni Sala Sciroppi</b><span>SR16 P07 · Sulmona · v<span id="ver"></span></span></div>
   <button class="btn" id="bLoad">Carica file .xlsx</button>
   <button class="btn primary" id="bSave" disabled>Scarica file aggiornato</button>
-  <button class="btn hide" id="bReopen" title="Rilegge il file dal disco, scartando la copia in memoria">Riapri dal disco</button>
+  <button class="btn hide" id="bReopen" title="Rilegge il file dal disco">Riapri dal disco</button>
+  <button class="btn" id="bFolder" title="Cartella dove scrivere una copia datata al primo salvataggio di ogni giornata">Cartella copie…</button>
   <button class="btn" id="bHist" disabled title="Ultime modifiche · Ctrl+Z per annullare">Cronologia</button>
   <span class="dirty hide" id="dirty">0 modifiche</span>
   <span class="filechip" id="fchip"></span>
@@ -298,32 +304,17 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
         </select>
       </span>
       <div class="sep"></div>
-      <span class="tip" data-tip="Restringe l'elenco. Oltre soglia: ferme da più giorni della soglia rossa. Sanitizzante scaduto: hanno ricevuto acqua o soda di recente ma nessun ciclo 3, 4 o 5 entro la soglia. Mai sanificate: nessun ciclo di alcun tipo dal 2019.">
+      <span class="tip" data-tip="Restringe l'elenco. Oltre soglia: ferme da più giorni della soglia rossa. Sanitizzante scaduto: hanno ricevuto un ciclo di recente ma nessun ciclo valido come sanificazione entro la soglia. Mai sanificate: nessun ciclo di alcun tipo dal 2019.">
         <label for="fOnly">Mostra</label>
         <select id="fOnly">
           <option value="all">tutte</option>
           <option value="over">solo oltre soglia</option>
           <option value="san">solo sanitizzante scaduto</option>
-          <option value="never">mai sanificate</option>
         </select>
       </span>
       <div class="sep"></div>
-      <span class="tip" data-tip="Giorni dall'ultimo ciclo di qualsiasi tipo, oltre i quali il contatore dei giorni diventa ambra. È un preavviso: l'attrezzatura non è ancora fuori soglia.">
-        <label for="fWarn">Attenzione (gg)</label>
-        <input type="number" id="fWarn" value="7" min="1" style="width:58px">
-      </span>
-      <span class="tip" data-tip="Giorni dall'ultimo ciclo di qualsiasi tipo, oltre i quali il riquadro prende bordo e numero rossi. Alimenta il conteggio «fuori soglia» accanto al nome del reparto e il filtro «solo oltre soglia».">
-        <label for="fOver">Fuori soglia (gg)</label>
-        <input type="number" id="fOver" value="14" min="1" style="width:58px">
-      </span>
-      <span class="tip" data-tip="Giorni dall'ultimo ciclo che contiene sanitizzante, cioè 3, 4 o 5. Oltre questo valore la riga in basso del riquadro passa a fondo rosso. È il criterio che conta per l'HACCP: un CIP2 con sola soda pulisce ma non abbatte la carica microbica, quindi un serbatoio lavato ieri può essere verde sopra e rosso qui.">
-        <label for="fSan">Sanitizz. (gg)</label>
-        <input type="number" id="fSan" value="30" min="1" style="width:58px">
-      </span>
-      <div class="sep"></div>
-      <span class="tip r" data-tip="La data da cui si contano i giorni trascorsi. È oggi per impostazione predefinita. Spostandola indietro vedi la situazione com'era a quella data: serve per ricostruire lo stato al momento di un audit o di una non conformità.">
-        <label for="fRef">Riferimento</label>
-        <input type="date" id="fRef">
+      <span class="tip r" data-tip="Soglie fisse, uguali su tutte le postazioni. Ambra oltre 7 giorni dall'ultimo ciclo, rosso oltre 14. La riga del sanitizzante diventa rossa oltre 30 giorni dall'ultimo ciclo che vale come sanificazione, il criterio che conta per l'HACCP. Per cambiarle si modifica il file dell'applicazione: così tutti vedono la stessa mappa.">
+        <span class="count">Soglie fisse: <b>7</b> gg attenzione · <b>14</b> gg fuori soglia · <b>30</b> gg sanitizzante (cicli <b id="cipSan"></b>)</span>
       </span>
     </div>
     <div class="bar legend" id="legend"></div>
@@ -375,7 +366,11 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
       </div>
       </span>
       <div class="sep"></div>
-      <span class="tip" data-tip="Riduce l'elenco sotto alle sole attrezzature che contengono il testo digitato, per non scorrere tutte e 49 le voci.">
+      <span class="tip" data-tip="Mostra solo le attrezzature di un reparto. Accanto a ogni voce trovi quante ne hai già registrate su quante, per il turno selezionato.">
+        <label for="iGrp">Reparto</label>
+        <select id="iGrp"><option value="">tutti</option></select>
+      </span>
+      <span class="tip" data-tip="Riduce l'elenco alle sole attrezzature che contengono il testo digitato. Si somma al filtro per reparto.">
         <label for="iSearch">Filtra</label>
         <input type="text" id="iSearch" placeholder="nome attrezzatura" style="width:190px">
       </span>
@@ -416,13 +411,14 @@ async function diag(){
     salvataggio diretto sul file originale: ${ok(fsa)}${fsa?"":" — disponibile solo su Chrome ed Edge"}.`;
 }
 window.addEventListener("load",()=>{
+  $("#ver").textContent=VERSIONE;
+  $("#cipSan").textContent=cipiSanit();
   diag(); restoreCheck();
+  kvGet("dir").then(d=>{ if(d){ S.dir=d; $("#bFolder").textContent="Copie: "+(d.name||"cartella"); } }).catch(()=>{});
   if(typeof JSZip==="undefined"){
     document.querySelector("#start .note").innerHTML =
       "<b>Attenzione: libreria di compressione non caricata.</b> Al primo avvio serve una connessione a "+
-      "cdnjs.cloudflare.com. Se la postazione è isolata dalla rete, scarica <code>jszip.min.js</code> da "+
-      "un'altra postazione, mettilo nella stessa cartella di questo file e sostituisci l'indirizzo nel tag "+
-      "&lt;script&gt; con <code>jszip.min.js</code>.";
+      "cdnjs.cloudflare.com.";
   }
 });
 
@@ -451,6 +447,16 @@ const GROUPS = [
 const CTRL_FROM="BB", CTRL_TO="BG", COL_OP="BH", COL_NOTE="BI";
 const COL_DATE="B", COL_TURNO="D";
 const ROW0 = 5;
+const VERSIONE = "2026.08.24";
+const GG_WARN = 7;              // attenzione: giorni dall'ultimo ciclo
+const GG_OVER = 14;             // fuori soglia: giorni dall'ultimo ciclo
+const GG_SAN  = 30;             // giorni dall'ultimo ciclo con sanitizzante
+/* Valore minimo del ciclo che vale come sanificazione.
+   3 = solo i cicli con sanitizzante dichiarato (CIP3, CIP4, CIP5).
+   2 = conta anche il CIP2 con sola soda.
+   Da allineare alla validazione della procedura, non alla comodità.   */
+const CIP_SANITIZZANTE = 3;
+const AUTOSAVE_MS = 20000;      // salvataggio automatico dopo l'ultima modifica
 const ANNI_OP = 3;              // profondità dell'elenco operatori                 // prima riga dati
 const SHEET_NAME = "sanificazioni";
 const TURNI = ["I°","II°","III°"];
@@ -501,6 +507,7 @@ const S = {
   ctrls:[],              // [{col,name,short}]
   edits:new Map(),       // "E8380" -> {v, num}
   hist:[], redo:[], rowDay:{}, handle:null, vhH:0, lastEdit:0, savedAt:0, opMap:new Map(),
+  washCache:new Map(), fileMtime:0, fileSize:0, dir:null, lastCopy:"",
   selRow:null, selCol:null,
   maxRow:0, lastDayIdx:-1,
   operators:[]
@@ -515,18 +522,17 @@ $("#bLoad").onclick = $("#bLoad2").onclick = async ()=>{
 };
 
 async function restoreCheck(){
-  let snap=null,fil=null,h=null;
-  try{ snap=await kvGet("snap"); fil=await kvGet("file"); h=await kvGet("handle"); }catch(e){ return; }
-  if(!fil && !h) return;
+  let snap=null,h=null;
+  try{ snap=await kvGet("snap"); h=await kvGet("handle"); }catch(e){ return; }
+  if(!h) return;
   const n=snap?snap.edits.length:0;
   const box=$("#restore"); if(!box) return;
   box.classList.remove("hide");
-  box.innerHTML=`<b>Sessione precedente trovata.</b> ${esc((fil&&fil.name)||(h&&h.name)||"file")}
-    · ultimo salvataggio locale ${fil?new Date((snap&&snap.savedAt)||fil.savedAt).toLocaleString("it-IT"):"—"}
+  box.innerHTML=`<b>Sessione precedente trovata.</b> ${esc(h.name||"file")}
+    ${snap&&snap.savedAt?`· ultime modifiche registrate ${new Date(snap.savedAt).toLocaleString("it-IT")}`:""}
     ${n?` · <b style="color:var(--alert)">${n} modifiche non ancora scritte nel file</b>`:" · nessuna modifica in sospeso"}
     <div style="margin-top:9px;display:flex;gap:7px;flex-wrap:wrap">
       ${h?`<button class="btn2" id="rHandle">Riapri il file dal disco</button>`:""}
-      ${fil?`<button class="btn2" id="rCache">Riprendi dalla copia in memoria</button>`:""}
       <button class="btn2" id="rDrop">Ricomincia da capo</button></div>
     ${h?`<div style="margin-top:7px;font-size:11.5px">Riaprire dal disco rilegge il file aggiornato:
       è la scelta giusta se qualcun altro lo ha modificato nel frattempo.</div>`:""}`;
@@ -535,16 +541,9 @@ async function restoreCheck(){
       S.handle=h; const f=await h.getFile(); await load(f); await reapply(snap);
     }catch(e){ alert("Non riesco a riaprire il file: "+e.message); }
   };
-  if($("#rCache")) $("#rCache").onclick=async()=>{
-    try{ S.handle=null;
-      const f=new File([fil.buf],fil.name,{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-      await load(f); await reapply(snap);
-      toast("Stai lavorando su una copia salvata il "+new Date(fil.savedAt).toLocaleString("it-IT"),7000);
-    }catch(e){ alert("Ripristino non riuscito: "+e.message); }
-  };
   $("#rDrop").onclick=async()=>{
     if(!confirm("Elimini la sessione salvata? Le modifiche non ancora scritte nel file andranno perse.")) return;
-    try{ await kvDel("snap"); await kvDel("file"); await kvDel("handle"); }catch(e){}
+    try{ await kvDel("snap"); await kvDel("handle"); }catch(e){}
     box.classList.add("hide");
   };
 }
@@ -611,7 +610,7 @@ async function canWrite(h){
 
 async function load(file){
   if(typeof JSZip==="undefined"){
-    alert("Libreria JSZip non caricata. Serve una connessione a internet al primo avvio, oppure apri la pagina da una postazione con accesso a cdnjs.cloudflare.com.");
+    alert("Libreria JSZip non caricata. Serve una connessione a internet al primo avvio, oppure una postazione con accesso a cdnjs.cloudflare.com.");
     return;
   }
   toast("Lettura del file in corso…",8000);
@@ -619,8 +618,7 @@ async function load(file){
     const buf = await file.arrayBuffer();
     S.zip = await JSZip.loadAsync(buf);
     S.fileName = file.name;
-    try{ await kvSet("file",{name:file.name,buf,savedAt:Date.now(),
-      mtime:file.lastModified||0,size:file.size}); }catch(e){}
+    S.fileMtime = file.lastModified||0; S.fileSize = file.size||0;
 
     // individua il foglio "sanificazioni"
     const wb  = await S.zip.file("xl/workbook.xml").async("string");
@@ -704,6 +702,7 @@ function parseHeadRow(inner,shared){
 }
 
 function buildModel(){
+  S.washCache.clear();
   // giornate: 3 righe per data a partire da ROW0
   S.days=[]; S.dayByIso={}; S.rowDay={};
   for(let r=ROW0;r+2<=S.maxRow;r+=3){
@@ -818,6 +817,7 @@ function setVal(row,col,v,num,silent){
   v = v===null||v===undefined?"":String(v).trim();
   if(v===before){ updDirty(); return; }
   if(v===orig) S.edits.delete(k); else S.edits.set(k,{v,num:!!num});
+  invalidateWash(col);
   S.lastEdit=Date.now();
   if(!silent){
     S.hist.unshift({row,col,before,after:v,num:!!num,ts:Date.now()});
@@ -918,7 +918,9 @@ function cipOf(v){
 /* ============================================================
    Ultimo lavaggio per colonna
    ============================================================ */
+function invalidateWash(col){ col ? S.washCache.delete(col) : S.washCache.clear(); }
 function lastWash(col,upToDayIdx){
+  if(upToDayIdx===undefined && S.washCache.has(col)) return S.washCache.get(col);
   const end = upToDayIdx===undefined ? S.days.length-1 : upToDayIdx;
   let last=null, lastSanit=null;
   for(let i=end;i>=0;i--){
@@ -928,11 +930,17 @@ function lastWash(col,upToDayIdx){
       const cip=cipOf(v);
       const hit={cip,raw:v,day:i,turno:t,date:d.date,op:getVal(d.rows[t],COL_OP)};
       if(!last) last=hit;
-      if(!lastSanit && typeof cip==="number" && cip>=3) lastSanit=hit;
-      if(last&&lastSanit) return {last,lastSanit};
+      if(!lastSanit && typeof cip==="number" && cip>=CIP_SANITIZZANTE) lastSanit=hit;
+      if(last&&lastSanit){
+        const r={last,lastSanit};
+        if(upToDayIdx===undefined) S.washCache.set(col,r);
+        return r;
+      }
     }
   }
-  return {last,lastSanit};
+  const r={last,lastSanit};
+  if(upToDayIdx===undefined) S.washCache.set(col,r);
+  return r;
 }
 
 /* ============================================================
@@ -978,17 +986,18 @@ function renderLegend(){
 }
 
 /* ---------- muro dello stato ---------- */
-["fSearch","fSort","fOnly","fWarn","fOver","fSan","fRef"].forEach(id=>{
-  $("#"+id).addEventListener("input",renderWall);
+function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+const renderWallD = debounce(renderWall,140);
+["fSearch","fSort","fOnly"].forEach(id=>{
+  $("#"+id).addEventListener("input",renderWallD);
 });
 function refDate(){
-  const v=$("#fRef").value;
-  return v ? new Date(v+"T00:00:00Z") : new Date(Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()));
+  const n=new Date();
+  return new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate()));
 }
 function renderWall(){
   if(!S.days.length) return;
-  if(!$("#fRef").value) $("#fRef").value = isoLocal(new Date());
-  const ref=refDate(), warn=+$("#fWarn").value||7, over=+$("#fOver").value||14, sanThr=+$("#fSan").value||30;
+  const ref=refDate(), warn=GG_WARN, over=GG_OVER, sanThr=GG_SAN;
   const q=$("#fSearch").value.trim().toLowerCase();
   const sort=$("#fSort").value, only=$("#fOnly").value;
 
@@ -1001,7 +1010,6 @@ function renderWall(){
   if(q) items=items.filter(i=>i.name.toLowerCase().includes(q)||i.group.toLowerCase().includes(q));
   if(only==="over") items=items.filter(i=>i.age===null||i.age>=over);
   if(only==="san") items=items.filter(i=>i.sanAge===null||i.sanAge>=sanThr);
-  if(only==="never") items=items.filter(i=>!i.last);
 
   const wall=$("#wall");
   if(!items.length){ wall.innerHTML=`<div class="note">Nessuna attrezzatura corrisponde ai filtri.</div>`; return; }
@@ -1082,6 +1090,29 @@ $("#wall").addEventListener("click",e=>{
 $("#ovl").addEventListener("click",e=>{ if(e.target.id==="ovl") closeDet(); });
 $("#hovl").addEventListener("click",e=>{ if(e.target.id==="hovl") $("#hovl").classList.add("hide"); });
 $("#bHist").onclick=()=>{ drawHist(); $("#hovl").classList.remove("hide"); };
+$("#bFolder").onclick=async()=>{
+  if(!window.showDirectoryPicker){ alert("Questo browser non consente di scegliere una cartella."); return; }
+  try{
+    const d=await window.showDirectoryPicker({mode:"readwrite"});
+    S.dir=d; await kvSet("dir",d);
+    $("#bFolder").textContent="Copie: "+(d.name||"cartella");
+    toast("Copia datata attiva: verrà scritta al primo salvataggio di ogni giornata",6000);
+  }catch(e){ if(e.name!=="AbortError") alert(e.message); }
+};
+async function copiaDatata(blob){
+  if(!S.dir) return;
+  const oggi=isoLocal(new Date());
+  if(S.lastCopy===oggi) return;
+  try{
+    if(await S.dir.queryPermission({mode:"readwrite"})!=="granted"
+       && await S.dir.requestPermission({mode:"readwrite"})!=="granted") return;
+    const nome=S.fileName.replace(/\.xlsx$/i,"")+"_"+oggi+".xlsx";
+    try{ await S.dir.getFileHandle(nome); S.lastCopy=oggi; return; }catch(e){}   // già presente
+    const fh=await S.dir.getFileHandle(nome,{create:true});
+    const w=await fh.createWritable(); await w.write(blob); await w.close();
+    S.lastCopy=oggi; stamp("copia del giorno creata: "+nome);
+  }catch(e){ stamp("copia datata non riuscita",true); }
+}
 $("#bReopen").onclick=async()=>{
   try{ const h=S.handle||await kvGet("handle"); if(!h) return;
     if(S.edits.size && !confirm("Ci sono modifiche non salvate. Rileggendo il file dal disco andranno perse. Procedo?")) return;
@@ -1098,7 +1129,7 @@ function drawDet(){
   const col=DET.col; if(!col) return;
   const eq=S.equip.find(x=>x.col===col);
   const h=histOf(col), st=statsOf(h), ref=refDate();
-  const L=h[0], LS=h.find(e=>typeof e.cip==="number"&&e.cip>=3);
+  const L=h[0], LS=h.find(e=>typeof e.cip==="number"&&e.cip>=CIP_SANITIZZANTE);
   const age = L?Math.round((ref-L.date)/86400000):null;
   const ageS= LS?Math.round((ref-LS.date)/86400000):null;
   const band = L&&CIP[L.cip] ? CIP[L.cip].c : "var(--line)";
@@ -1131,7 +1162,7 @@ function drawDet(){
       <div class="sm">${L?badge(L.cip,L.v)+" "+ddmm(L.date)+" · "+TURNI[L.turno]:"nessun ciclo registrato"}</div></div>
     <div class="kpi ${(!LS||ageS>90)?"bad":""}"><div class="lb">Ultimo con sanitizzante</div>
       <div class="bg">${LS?ageS:"—"} <span style="font-size:12px;font-weight:400">${LS?"giorni fa":"mai"}</span></div>
-      <div class="sm">${LS?badge(LS.cip,LS.v)+" "+ddmm(LS.date):"nessun ciclo con sanitizzante"}</div></div>
+      <div class="sm">${LS?badge(LS.cip,LS.v)+" "+ddmm(LS.date):`nessun ciclo ${cipiSanit()}`}</div></div>
     <div class="kpi"><div class="lb">Intervallo tipico</div>
       <div class="bg">${st.med!==null?st.med:"—"} <span style="font-size:12px;font-weight:400;color:var(--muted)">giorni</span></div>
       <div class="sm">${st.avg!==null?`media ${st.avg} · max ${st.max}`:"dato non calcolabile"}</div></div>
@@ -1209,7 +1240,7 @@ function drawReg(){
   const opq=($("#rOp")&&$("#rOp").value||"").toUpperCase();
   const idxs=S.days.map((d,i)=>i).filter(i=>{const s=iso(S.days[i].date);return s>=from&&s<=to;});
   const cols=S.equip.filter(e=>!grp||e.group===grp);
-  $("#rInfo").dataset.base=`${cols.length} attrezzature · clic sulla cella per il ciclo · clic su turno o nome per evidenziare · doppio clic sul nome per la scheda`;
+  $("#rInfo").dataset.base=`${cols.length} attrezzature · sola consultazione · clic su turno o nome per evidenziare · doppio clic sul nome per la scheda`;
   if(!idxs.length){ $("#regTable").innerHTML=`<tbody><tr><td style="padding:16px">Nessuna giornata nell'intervallo.</td></tr></tbody>`; return; }
 
   // intestazione a due livelli: reparto + nome verticale
@@ -1246,13 +1277,37 @@ function drawReg(){
       body+=`</tr>`;
     }
   }
+  let nOver=0;
   if(!nRows){
     $("#regTable").innerHTML=`<tbody><tr><td style="padding:16px">Nessun turno dell'operatore selezionato in questo intervallo.</td></tr></tbody>`;
   }else{
     $("#regTable").innerHTML=`<thead>${gh}${h2}</thead><tbody>${body}</tbody>`;
+    nOver=markOver();
     applySel();
   }
-  $("#rInfo").textContent=`${idxs.length} giornate · ${nRows} turni · `+$("#rInfo").dataset.base;
+  $("#rInfo").innerHTML=(nOver?`<b style="color:var(--alert)">${nOver} da lavare prima dell'utilizzo</b> · `:"")+
+    `${idxs.length} giornate · ${nRows} turni · `+$("#rInfo").dataset.base;
+}
+const cipiSanit=()=>[1,2,3,4,5].filter(k=>k>=CIP_SANITIZZANTE).join(", ").replace(/, (\d)$/," o $1");
+function isOver(col){
+  const ref=refDate(), {last,lastSanit}=lastWash(col);
+  if(!last) return true;
+  if(Math.round((ref-last.date)/86400000)>=GG_OVER) return true;
+  if(!lastSanit) return true;
+  return Math.round((ref-lastSanit.date)/86400000)>=GG_SAN;
+}
+function markOver(){
+  const T=$("#regTable"); if(!T) return 0;
+  let n=0;
+  for(const th of T.querySelectorAll("th[data-col]")){
+    const col=th.dataset.col;
+    if(!isOver(col)) continue;
+    n++;
+    th.classList.add("overc");
+    th.title=th.title.split(" — ")[0]+" — DA LAVARE prima dell'utilizzo";
+    T.querySelectorAll(`td[data-c="${col}"]`).forEach(td=>td.classList.add("overc"));
+  }
+  return n;
 }
 function applySel(){
   const T=$("#regTable"); if(!T) return;
@@ -1289,19 +1344,15 @@ $("#regTable").addEventListener("click",e=>{
     const rr=+td.dataset.r;
     S.selRow = S.selRow===rr ? null : rr; return applySel();
   }
-  const r=+td.dataset.r, col=td.dataset.c, k=td.dataset.k, cur=getVal(r,col);
-  if(k==="cip"){
-    const seq=["","1","2","3","4","5"];
-    const nx=seq[(seq.indexOf(String(cur))+1+seq.length)%seq.length] ?? "";
-    setVal(r,col,nx,true);
-    td.outerHTML=cellHtml(r,col); applySel();
-  }else if(k==="ctrl"){
-    const seq=["","OK","NON OK"];
-    const nx=seq[(seq.indexOf(String(cur).toUpperCase())+1+seq.length)%seq.length] ?? "";
-    setVal(r,col,nx,false); drawReg();
-  }else{
-    const v=prompt(col===COL_OP?"Operatore:":"Note:",cur);
-    if(v!==null){ setVal(r,col,v,false); drawReg(); }
+  // il Registro è di sola consultazione: si scrive dalla scheda Registrazione
+  const m=S.rowDay[+td.dataset.r];
+  if(m && confirm("Il Registro è di sola consultazione.\n\nApro la scheda Registrazione su "+
+      ddmm(S.days[m[0]].date)+" turno "+TURNI[m[1]]+"?")){
+    $("#iDate").value=iso(S.days[m[0]].date);
+    $$("#iTurno button").forEach(x=>x.setAttribute("aria-pressed",+x.dataset.t===m[1]));
+    $$("#tabs .tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.p==="ins"));
+    $$(".panel").forEach(p=>p.classList.remove("on"));
+    $("#p-ins").classList.add("on"); drawIns();
   }
 });
 
@@ -1314,7 +1365,8 @@ function initIns(){
   $("#iDate").value = S.dayByIso[today]!==undefined ? today : iso(d);
   $("#iDate").min=iso(S.days[0].date); $("#iDate").max=iso(S.days[S.days.length-1].date);
   $("#iDate").onchange=drawIns;
-  $("#iSearch").addEventListener("input",drawIns);
+  $("#iSearch").addEventListener("input",debounce(drawIns,150));
+  $("#iGrp").addEventListener("change",drawIns);
   $("#iTurno").onclick=e=>{
     const b=e.target.closest("button"); if(!b) return;
     $$("#iTurno button").forEach(x=>x.setAttribute("aria-pressed",x===b));
@@ -1336,10 +1388,20 @@ function drawIns(){
       le righe direttamente in Excel.</div>`;
     $("#iCtrl").innerHTML=""; $("#iInfo").textContent=""; return;
   }
+  // il menu dei reparti riporta quanti cicli sono già registrati in questo turno
+  const sel=$("#iGrp").value;
+  $("#iGrp").innerHTML=`<option value="">tutti i reparti (${S.equip.filter(e=>getVal(r,e.col)!=="").length}/${S.equip.length})</option>`+
+    GROUPS.map(([g])=>{
+      const sub=S.equip.filter(e=>e.group===g);
+      const n=sub.filter(e=>getVal(r,e.col)!=="").length;
+      return `<option value="${esc(g)}"${g===sel?" selected":""}>${esc(g)} (${n}/${sub.length})</option>`;
+    }).join("");
   const q=$("#iSearch").value.trim().toLowerCase();
-  const list=S.equip.filter(e=>!q||e.name.toLowerCase().includes(q)||e.group.toLowerCase().includes(q));
+  const list=S.equip.filter(e=>(!sel||e.group===sel)&&
+    (!q||e.name.toLowerCase().includes(q)||e.group.toLowerCase().includes(q)));
   const done=S.equip.filter(e=>getVal(r,e.col)!=="").length;
-  $("#iInfo").textContent=`${done} cicli registrati in questo turno`;
+  $("#iInfo").textContent=`${done} cicli registrati in questo turno`
+    +(list.length!==S.equip.length?` · ${list.length} attrezzature mostrate`:"");
 
   let html="", lastG="";
   for(const e of list){
@@ -1441,7 +1503,19 @@ async function doSave(auto){
       mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
     let diretto=false, name=S.fileName;
     if(FSA && S.handle && await canWrite(S.handle)){
+      try{
+        const cur=await S.handle.getFile();
+        if(S.fileMtime && (cur.lastModified!==S.fileMtime || cur.size!==S.fileSize)){
+          if(auto){ stamp("file cambiato sul disco: salvataggio automatico sospeso",true); return false; }
+          if(!confirm("ATTENZIONE: il file sul disco è cambiato dopo che l'hai aperto ("+
+            new Date(cur.lastModified).toLocaleString("it-IT")+").\n\n"+
+            "Salvando sovrascrivi le modifiche fatte da qualcun altro.\n"+
+            "Annulla e usa «Riapri dal disco» per rileggerlo.\n\nSalvo comunque?")) return false;
+        }
+      }catch(e){}
+      await copiaDatata(blob);
       const w=await S.handle.createWritable(); await w.write(blob); await w.close(); diretto=true;
+      try{ const f2=await S.handle.getFile(); S.fileMtime=f2.lastModified; S.fileSize=f2.size; }catch(e){}
     }else if(!auto){
       name=S.fileName.replace(/\.xlsx$/i,"")+"_agg_"+isoLocal(new Date())+".xlsx";
       const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
@@ -1462,7 +1536,7 @@ $("#bSave").onclick=()=>doSave(false);
 function autosaveDisk(){
   if(!(FSA && S.handle)) return;
   clearTimeout(diskT);
-  diskT=setTimeout(()=>{ if(S.edits.size && S.savedAt<S.lastEdit) doSave(true); },20000);
+  diskT=setTimeout(()=>{ if(S.edits.size && S.savedAt<S.lastEdit) doSave(true); },AUTOSAVE_MS);
 }
 function parseRowSpansOnly(){
   S.rowSpan={}; const re=/<row r="(\d+)"[^>]*>[\s\S]*?<\/row>/g; let m;
