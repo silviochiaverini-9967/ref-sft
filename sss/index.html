@@ -267,6 +267,8 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
 .foot{padding:10px 4px 2px;font-size:11px;color:var(--muted);line-height:1.5}
 .foot a{color:inherit}
 .foot b{color:var(--ink)}
+input#iDate.fuorioggi{border:2px solid var(--alert);background:var(--alert-bg);font-weight:700}
+#iWarn{animation:none}
 .hide{display:none!important}
 .count{font-size:11px;color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none}
 </style>
@@ -484,7 +486,7 @@ const GROUPS = [
 const CTRL_FROM="BB", CTRL_TO="BG", COL_OP="BH", COL_NOTE="BI";
 const COL_DATE="B", COL_TURNO="D";
 const ROW0 = 5;
-const VERSIONE = "2026.08.31";
+const VERSIONE = "2026.08.31b";
 const GG_WARN = 7;              // attenzione: giorni dall'ultimo ciclo
 const GG_OVER = 14;             // fuori soglia: giorni dall'ultimo ciclo
 const GG_SAN  = 30;             // giorni dall'ultimo ciclo con sanitizzante
@@ -1427,6 +1429,7 @@ function initIns(){
     : iso(S.days[S.lastDayIdx>=0?S.lastDayIdx:S.days.length-1].date);
   $("#iDate").min=iso(S.days[0].date); $("#iDate").max=iso(S.days[S.days.length-1].date);
   $("#iDate").onchange=drawIns;
+  $("#iDate").addEventListener("input",drawIns);
   $("#iToday").onclick=()=>{ $("#iDate").value=isoLocal(new Date()); drawIns(); };
   $("#iSearch").addEventListener("input",debounce(drawIns,150));
   $("#iGrp").addEventListener("change",drawIns);
@@ -1443,7 +1446,20 @@ function curRow(){
   const t=+$$("#iTurno button").find(b=>b.getAttribute("aria-pressed")==="true").dataset.t;
   return S.days[di].rows[t];
 }
+function avvisoData(){
+  const oggi=isoLocal(new Date()), dataSel=$("#iDate").value;
+  const fuori = dataSel && dataSel!==oggi;
+  $("#iWarn").classList.toggle("hide",!fuori);
+  $("#iToday").classList.toggle("hide",!fuori);
+  $("#iDate").classList.toggle("fuorioggi",!!fuori);
+  if(fuori){
+    const g=new Date(dataSel+"T00:00:00Z"), d=Math.round((g-refDate())/86400000);
+    $("#iWarn").textContent="Stai compilando il "+ddmm(g)+", non oggi"
+      +(d<0?` (${-d} giorni fa)`:d>0?` (fra ${d} giorni)`:"");
+  }
+}
 function drawIns(){
+  avvisoData();
   const r=curRow();
   if(r===null){
     $("#iList").innerHTML=`<div class="note">Questa data non esiste nel foglio. Il registro copre dal
@@ -1462,12 +1478,6 @@ function drawIns(){
   const q=$("#iSearch").value.trim().toLowerCase();
   const list=S.equip.filter(e=>(!sel||e.group===sel)&&
     (!q||e.name.toLowerCase().includes(q)||e.group.toLowerCase().includes(q)));
-  // avviso quando non si sta compilando la giornata di oggi
-  const oggi=isoLocal(new Date()), dataSel=$("#iDate").value;
-  const fuoriOggi = dataSel!==oggi;
-  $("#iWarn").classList.toggle("hide",!fuoriOggi);
-  $("#iToday").classList.toggle("hide",!(fuoriOggi && S.dayByIso[oggi]!==undefined));
-  if(fuoriOggi) $("#iWarn").textContent="Stai compilando il "+dataSel.split("-").reverse().join("/")+", non oggi";
   const done=S.equip.filter(e=>getVal(r,e.col)!=="").length;
   $("#iInfo").textContent=`${done} cicli registrati in questo turno`
     +(list.length!==S.equip.length?` · ${list.length} attrezzature mostrate`:"");
