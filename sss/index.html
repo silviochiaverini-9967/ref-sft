@@ -1,4 +1,21 @@
 <!DOCTYPE html>
+<!--
+  Registro Sanificazioni Sala Sciroppi — SR16 P07
+  Copyright (C) 2026  Silvio Chiaverini
+
+  Questo programma è software libero: puoi ridistribuirlo e/o modificarlo
+  secondo i termini della GNU General Public License come pubblicata dalla
+  Free Software Foundation, nella versione 3 della Licenza o (a tua scelta)
+  in una qualsiasi versione successiva.
+
+  Questo programma è distribuito nella speranza che sia utile, ma SENZA
+  ALCUNA GARANZIA; senza neppure la garanzia implicita di COMMERCIABILITÀ
+  o IDONEITÀ PER UN PARTICOLARE SCOPO. Vedi la GNU General Public License
+  per maggiori dettagli: https://www.gnu.org/licenses/gpl-3.0.html
+
+  Componenti di terze parti:
+  JSZip 3.10.1 — Stuart Knightley e collaboratori — licenza MIT.
+-->
 <html lang="it">
 <head>
 <meta charset="utf-8">
@@ -247,6 +264,9 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
 .hrow .tu{width:62px;flex:none;color:var(--muted)}
 .hrow .op{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hlist{max-height:46vh;overflow:auto}
+.foot{padding:10px 4px 2px;font-size:11px;color:var(--muted);line-height:1.5}
+.foot a{color:inherit}
+.foot b{color:var(--ink)}
 .hide{display:none!important}
 .count{font-size:11px;color:var(--muted);font-weight:400;letter-spacing:0;text-transform:none}
 </style>
@@ -284,6 +304,8 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
       A fine turno premi <b>Scarica file aggiornato</b> e sostituisci l'originale sul server.
       Il browser non può salvare direttamente sul file di partenza.
     </div>
+    <div class="note" style="margin-top:10px">Programma scritto da <b>Silvio Chiaverini</b> ·
+      software libero sotto <b>GNU GPL v3</b> · nessuna garanzia.</div>
     <div class="note hide" id="restore" style="margin-top:10px"></div>
     <div class="note" id="diag" style="margin-top:10px">Verifica della postazione in corso…</div>
   </div>
@@ -354,9 +376,11 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
   <!-- ====== INSERIMENTO ====== -->
   <div class="panel" id="p-ins">
     <div class="bar">
-      <span class="tip" data-tip="Giornata da compilare. Si apre su oggi se presente nel foglio, altrimenti sull'ultima giornata registrata.">
+      <span class="tip" data-tip="Giornata da compilare. Si apre su oggi. Se la sposti su un'altra data compare un avviso rosso: è l'errore più facile da fare e il più difficile da accorgersene dopo.">
         <label for="iDate">Data</label><input type="date" id="iDate">
+        <button class="btn2 hide" id="iToday">Torna a oggi</button>
       </span>
+      <span class="dirty hide" id="iWarn"></span>
       <span class="tip" data-tip="Turno della giornata. Ogni data occupa tre righe nel foglio Excel, una per turno: quello che scegli qui decide su quale riga finiscono i cicli.">
       <label>Turno</label>
       <div class="seg" id="iTurno" style="width:180px">
@@ -389,12 +413,21 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
     </div>
   </div>
 
+  <div class="foot">
+    Registro Sanificazioni Sala Sciroppi · SR16 P07 — programma scritto da <b>Silvio Chiaverini</b>,
+    Copyright © 2026. Software libero distribuito secondo i termini della
+    <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">GNU General Public License v3</a>
+    o successive, SENZA ALCUNA GARANZIA. Comprende JSZip (licenza MIT).
+    Versione <span id="ver2"></span>.
+  </div>
 </main>
 
 <div id="ovl" class="hide"><div id="det"></div></div>
 <div id="hovl" class="hide"><div id="hist"></div></div>
 
 <script>
+/* Registro Sanificazioni Sala Sciroppi — Copyright (C) 2026 Silvio Chiaverini
+   Software libero sotto GNU GPL v3 — https://www.gnu.org/licenses/gpl-3.0.html */
 "use strict";
 async function diag(){
   const ok=v=>v?'<b style="color:#1b6b3a">sì</b>':'<b style="color:#c62828">no</b>';
@@ -412,9 +445,11 @@ async function diag(){
 }
 window.addEventListener("load",()=>{
   $("#ver").textContent=VERSIONE;
+  $("#ver2").textContent=VERSIONE;
   $("#cipSan").textContent=cipiSanit();
   diag(); restoreCheck();
-  kvGet("dir").then(d=>{ if(d){ S.dir=d; $("#bFolder").textContent="Copie: "+(d.name||"cartella"); } }).catch(()=>{});
+  if(!window.showDirectoryPicker) $("#bFolder").classList.add("hide");
+  else kvGet("dir").then(d=>{ if(d){ S.dir=d; $("#bFolder").textContent="Copie: "+(d.name||"cartella"); } }).catch(()=>{});
   if(typeof JSZip==="undefined"){
     document.querySelector("#start .note").innerHTML =
       "<b>Attenzione: libreria di compressione non caricata.</b> Al primo avvio serve una connessione a "+
@@ -425,6 +460,8 @@ window.addEventListener("load",()=>{
 /* ============================================================
    Costanti di dominio — ricavate dal file SR16 P07 REV08
    ============================================================ */
+const AUTORE  = "Silvio Chiaverini";
+const LICENZA = "GNU GPL v3";
 const CIP = {
   1:{c:"#00B050",t:"#fff",  n:"CIP1", d:"Risciacquo con acqua"},
   2:{c:"#FFFF00",t:"#3a3200",n:"CIP2", d:"Acqua + soda"},
@@ -447,7 +484,7 @@ const GROUPS = [
 const CTRL_FROM="BB", CTRL_TO="BG", COL_OP="BH", COL_NOTE="BI";
 const COL_DATE="B", COL_TURNO="D";
 const ROW0 = 5;
-const VERSIONE = "2026.08.24";
+const VERSIONE = "2026.08.31";
 const GG_WARN = 7;              // attenzione: giorni dall'ultimo ciclo
 const GG_OVER = 14;             // fuori soglia: giorni dall'ultimo ciclo
 const GG_SAN  = 30;             // giorni dall'ultimo ciclo con sanitizzante
@@ -508,7 +545,8 @@ const S = {
   edits:new Map(),       // "E8380" -> {v, num}
   hist:[], redo:[], rowDay:{}, handle:null, vhH:0, lastEdit:0, savedAt:0, opMap:new Map(),
   washCache:new Map(), fileMtime:0, fileSize:0, dir:null, lastCopy:"",
-  selRow:null, selCol:null,
+  equipCols:new Set(), byCol:new Map(),
+  selRow:null, selCol:null, customRange:false,
   maxRow:0, lastDayIdx:-1,
   operators:[]
 };
@@ -645,6 +683,12 @@ async function load(file){
     $("#bSave").textContent = (FSA&&S.handle) ? "Salva sul file" : "Scarica file aggiornato";
     stamp(S.handle?"collegato al file su disco":"copia in memoria del browser");
     refreshAll();
+    const ultima=S.days[S.days.length-1].date;
+    const residui=Math.round((ultima-refDate())/86400000);
+    if(residui<45) toast(residui<0
+      ? `Il registro finisce il ${ddmm(ultima)}: le giornate successive non esistono nel foglio. Vanno aggiunte in Excel.`
+      : `Attenzione: il registro finisce fra ${residui} giorni, il ${ddmm(ultima)}. Aggiungi le righe in Excel prima di allora.`,
+      12000);
     if(S.handle) $("#bReopen").classList.remove("hide");
     toast(`Caricate ${S.days.length} giornate · ultima registrazione ${S.lastDayIdx>=0?ddmm(S.days[S.lastDayIdx].date):"—"}`);
   }catch(err){
@@ -719,7 +763,8 @@ function buildModel(){
   for(const [g,a,b] of GROUPS)
     for(let i=c2n(a);i<=c2n(b);i++){
       const col=n2c(i);
-      S.equip.push({col, name:(S.head[col]||col).replace(/\s{2,}/g," "), group:g});
+      const nome=(S.head[col]||col).replace(/\s{2,}/g," ");
+      S.equip.push({col, name:nome, short:abbrev(nome), group:g});
     }
   // controlli
   S.ctrls=[];
@@ -728,11 +773,13 @@ function buildModel(){
     S.ctrls.push({col,name:full,short:shortCtrl(full)});
   }
   // ultima giornata con dati
+  S.equipCols=new Set(S.equip.map(e=>e.col));
+  S.byCol=new Map([...S.equip.map(e=>[e.col,e]), ...S.ctrls.map(c=>[c.col,c])]);
   S.lastDayIdx=-1;
   S.days.forEach((d,i)=>{
     for(const r of d.rows){
       const rec=S.data[r];
-      if(rec && S.equip.some(e=>rec[e.col]!==undefined)) S.lastDayIdx=i;
+      if(rec){ for(const c of S.equipCols) if(rec[c]!==undefined){ S.lastDayIdx=i; break; } }
     }
   });
   // elenco operatori limitato agli ultimi ANNI_OP anni
@@ -818,6 +865,8 @@ function setVal(row,col,v,num,silent){
   if(v===before){ updDirty(); return; }
   if(v===orig) S.edits.delete(k); else S.edits.set(k,{v,num:!!num});
   invalidateWash(col);
+  if(v!=="" && S.rowDay[row] && S.rowDay[row][0]>S.lastDayIdx && S.equipCols.has(col))
+    S.lastDayIdx=S.rowDay[row][0];
   S.lastEdit=Date.now();
   if(!silent){
     S.hist.unshift({row,col,before,after:v,num:!!num,ts:Date.now()});
@@ -842,9 +891,8 @@ function updDirty(){
 function labelOf(col){
   if(col===COL_OP) return "Operatore";
   if(col===COL_NOTE) return "Note";
-  const e=S.equip.find(x=>x.col===col); if(e) return e.name;
-  const c=S.ctrls.find(x=>x.col===col); if(c) return c.short;
-  return "colonna "+col;
+  const x=S.byCol.get(col);
+  return x ? (x.name||x.short) : "colonna "+col;
 }
 function whenOf(row){
   const m=S.rowDay[row];
@@ -949,17 +997,21 @@ function lastWash(col,upToDayIdx){
 function fitHeaderHeight(){
   const probe=document.createElement("div");
   probe.style.cssText="position:absolute;left:-9999px;top:0;visibility:hidden;display:flex";
-  const items=S.equip.map(e=>abbrev(e.name))
+  const items=S.equip.map(e=>e.short)
     .concat(S.ctrls.map(c=>c.short),["Operatore","Note"]);
   probe.innerHTML=items.map(t=>`<div class="vh">${esc(t)}</div>`).join("");
   document.body.appendChild(probe);
   const els=[...probe.children];
-  let H=48;
-  for(; H<=340; H+=2){
-    els.forEach(el=>el.style.height=H+"px");
+  const entra=H=>{
+    for(const el of els) el.style.height=H+"px";
     void probe.offsetWidth;                       // forza il ricalcolo
-    if(els.every(el=>el.scrollWidth<=el.clientWidth+0.5)) break;
-  }
+    for(const el of els) if(el.scrollWidth>el.clientWidth+0.5) return false;
+    return true;
+  };
+  // ricerca binaria: una decina di misurazioni invece di centocinquanta
+  let lo=48, hi=340, H;
+  if(entra(lo)) H=lo;
+  else{ while(hi-lo>2){ const mid=(lo+hi)>>1; entra(mid)?(hi=mid):(lo=mid); } H=hi; entra(H); }
   probe.remove();
   S.vhH=H;
   document.documentElement.style.setProperty("--vhh",H+"px");
@@ -971,7 +1023,14 @@ $("#tabs").onclick=e=>{
   $$("#tabs .tab").forEach(t=>t.setAttribute("aria-selected", t===b));
   $$(".panel").forEach(p=>p.classList.remove("on"));
   $("#p-"+b.dataset.p).classList.add("on");
-  if(b.dataset.p==="reg") drawReg();
+  if(b.dataset.p==="reg"){
+    // se l'intervallo non è stato scelto a mano, riportalo su oggi
+    if(!S.customRange){
+      const att=$$("#rQuick button").find(x=>x.getAttribute("aria-pressed")==="true");
+      setRange(att?+att.dataset.n:15);
+    }
+    drawReg();
+  }
   if(b.dataset.p==="ins") drawIns();
   if(b.dataset.p==="stato") renderWall();
 };
@@ -1216,7 +1275,7 @@ function initReg(){
   $("#rQuick").onclick=e=>{
     const b=e.target.closest("button"); if(!b) return;
     $$("#rQuick button").forEach(x=>x.setAttribute("aria-pressed",x===b));
-    clearSel(); setRange(+b.dataset.n); drawReg();
+    clearSel(); S.customRange=false; setRange(+b.dataset.n); drawReg();
   };
   $("#rOp").innerHTML=`<option value="">tutti gli operatori</option>`+
     S.operators.map(o=>`<option value="${esc(o.name)}">${esc(o.name)} (${o.n})</option>`).join("");
@@ -1226,12 +1285,15 @@ function initReg(){
     `dello stesso cognome sono ricondotte a una sola voce.`;
   ["rGrp","rOp"].forEach(id=>$("#"+id).addEventListener("change",()=>{ clearSel(); drawReg(); }));
   ["rFrom","rTo"].forEach(id=>$("#"+id).addEventListener("change",()=>{
-    clearSel();
+    clearSel(); S.customRange=true;
     $$("#rQuick button").forEach(x=>x.setAttribute("aria-pressed",false)); drawReg();
   }));
 }
 function setRange(n){
-  const end = S.days[S.lastDayIdx>=0?S.lastDayIdx:S.days.length-1].date;
+  // l'intervallo finisce a oggi, o all'ultima giornata registrata se successiva
+  const ultimaDato = S.days[S.lastDayIdx>=0?S.lastDayIdx:S.days.length-1].date;
+  const iOggi = S.dayByIso[isoLocal(new Date())];
+  const end = (iOggi!==undefined && S.days[iOggi].date>ultimaDato) ? S.days[iOggi].date : ultimaDato;
   const start = new Date(end.getTime()-(n-1)*86400000);
   $("#rTo").value=iso(end); $("#rFrom").value=iso(start);
 }
@@ -1251,11 +1313,16 @@ function drawReg(){
   gh+=`<th class="gh" colspan="${S.ctrls.length}"><span>Controlli</span></th><th class="gh" colspan="2"><span>Operatore e note</span></th></tr>`;
 
   let h2=`<tr class="h2"><th class="stickA" style="left:0;z-index:6"></th><th class="stickB" style="left:86px;z-index:6"></th>`;
-  cols.forEach(e=>h2+=`<th data-col="${e.col}" title="${esc(e.name)} — clic per evidenziare, doppio clic per la scheda"><div class="vh">${esc(abbrev(e.name))}</div></th>`);
+  cols.forEach(e=>{
+    const ov=OVER.has(e.col);
+    h2+=`<th data-col="${e.col}" class="${ov?"overc":""}" title="${ov?"DA LAVARE prima dell'utilizzo — ":""}`
+      +`${esc(e.name)} — clic per evidenziare, doppio clic per la scheda"><div class="vh">${esc(e.short)}</div></th>`;
+  });
   S.ctrls.forEach(c=>h2+=`<th><div class="vh" title="${esc(c.name)}">${esc(c.short)}</div></th>`);
   h2+=`<th><div class="vh">Operatore</div></th><th><div class="vh">Note</div></th></tr>`;
 
   const todayIso=isoLocal(new Date());
+  const nOver=calcOver(cols);
   let body="", nRows=0;
   for(const di of idxs){
     const d=S.days[di], ds=iso(d.date), wk=[0,6].includes(d.date.getUTCDay());
@@ -1277,12 +1344,10 @@ function drawReg(){
       body+=`</tr>`;
     }
   }
-  let nOver=0;
   if(!nRows){
     $("#regTable").innerHTML=`<tbody><tr><td style="padding:16px">Nessun turno dell'operatore selezionato in questo intervallo.</td></tr></tbody>`;
   }else{
     $("#regTable").innerHTML=`<thead>${gh}${h2}</thead><tbody>${body}</tbody>`;
-    nOver=markOver();
     applySel();
   }
   $("#rInfo").innerHTML=(nOver?`<b style="color:var(--alert)">${nOver} da lavare prima dell'utilizzo</b> · `:"")+
@@ -1296,18 +1361,13 @@ function isOver(col){
   if(!lastSanit) return true;
   return Math.round((ref-lastSanit.date)/86400000)>=GG_SAN;
 }
-function markOver(){
-  const T=$("#regTable"); if(!T) return 0;
-  let n=0;
-  for(const th of T.querySelectorAll("th[data-col]")){
-    const col=th.dataset.col;
-    if(!isOver(col)) continue;
-    n++;
-    th.classList.add("overc");
-    th.title=th.title.split(" — ")[0]+" — DA LAVARE prima dell'utilizzo";
-    T.querySelectorAll(`td[data-c="${col}"]`).forEach(td=>td.classList.add("overc"));
-  }
-  return n;
+/* colonne fuori soglia: calcolate una volta per disegno e scritte
+   direttamente nel markup, invece di trenta passate sul DOM */
+let OVER=new Set();
+function calcOver(cols){
+  OVER=new Set();
+  for(const e of cols) if(isOver(e.col)) OVER.add(e.col);
+  return OVER.size;
 }
 function applySel(){
   const T=$("#regTable"); if(!T) return;
@@ -1326,11 +1386,12 @@ function applySel(){
 }
 function clearSel(){ S.selRow=null; S.selCol=null; }
 function cellHtml(r,col){
-  const v=getVal(r,col), cip=cipOf(v), ed=S.edits.has(col+r);
+  const v=getVal(r,col), cip=cipOf(v);
   let st="";
   if(typeof cip==="number") st=`background:${CIP[cip].c};color:${CIP[cip].t}`;
-  else if(cip==="?") st=`background:#fff;color:#8a3a00`;
-  return `<td class="cell ${ed?"edited":""}" data-r="${r}" data-c="${col}" data-k="cip" style="${st}">${esc(v)}</td>`;
+  else if(cip==="?") st="background:#fff;color:#8a3a00";
+  return `<td class="cell${S.edits.has(col+r)?" edited":""}${OVER.has(col)?" overc":""}"`
+    +` data-r="${r}" data-c="${col}" data-k="cip" style="${st}">${esc(v)}</td>`;
 }
 $("#regTable").addEventListener("dblclick",e=>{
   const th=e.target.closest("th[data-col]"); if(!th) return;
@@ -1360,11 +1421,13 @@ $("#regTable").addEventListener("click",e=>{
    Registrazione turno
    ============================================================ */
 function initIns(){
-  const d=S.days[S.lastDayIdx>=0?S.lastDayIdx:0].date;
   const today=isoLocal(new Date());
-  $("#iDate").value = S.dayByIso[today]!==undefined ? today : iso(d);
+  $("#iDate").value = S.dayByIso[today]!==undefined
+    ? today
+    : iso(S.days[S.lastDayIdx>=0?S.lastDayIdx:S.days.length-1].date);
   $("#iDate").min=iso(S.days[0].date); $("#iDate").max=iso(S.days[S.days.length-1].date);
   $("#iDate").onchange=drawIns;
+  $("#iToday").onclick=()=>{ $("#iDate").value=isoLocal(new Date()); drawIns(); };
   $("#iSearch").addEventListener("input",debounce(drawIns,150));
   $("#iGrp").addEventListener("change",drawIns);
   $("#iTurno").onclick=e=>{
@@ -1399,6 +1462,12 @@ function drawIns(){
   const q=$("#iSearch").value.trim().toLowerCase();
   const list=S.equip.filter(e=>(!sel||e.group===sel)&&
     (!q||e.name.toLowerCase().includes(q)||e.group.toLowerCase().includes(q)));
+  // avviso quando non si sta compilando la giornata di oggi
+  const oggi=isoLocal(new Date()), dataSel=$("#iDate").value;
+  const fuoriOggi = dataSel!==oggi;
+  $("#iWarn").classList.toggle("hide",!fuoriOggi);
+  $("#iToday").classList.toggle("hide",!(fuoriOggi && S.dayByIso[oggi]!==undefined));
+  if(fuoriOggi) $("#iWarn").textContent="Stai compilando il "+dataSel.split("-").reverse().join("/")+", non oggi";
   const done=S.equip.filter(e=>getVal(r,e.col)!=="").length;
   $("#iInfo").textContent=`${done} cicli registrati in questo turno`
     +(list.length!==S.equip.length?` · ${list.length} attrezzature mostrate`:"");
@@ -1432,8 +1501,9 @@ function drawIns(){
       </div></div>`;
   }).join("");
 
-  $("#iOp").value=getVal(r,COL_OP);
-  $("#iNote").value=getVal(r,COL_NOTE);
+  // non sovrascrivere il campo su cui l'operatore sta scrivendo
+  if(document.activeElement!==$("#iOp"))   $("#iOp").value=getVal(r,COL_OP);
+  if(document.activeElement!==$("#iNote")) $("#iNote").value=getVal(r,COL_NOTE);
 }
 $("#p-ins").addEventListener("click",e=>{
   const b=e.target.closest(".pk"); if(!b) return;
@@ -1441,8 +1511,9 @@ $("#p-ins").addEventListener("click",e=>{
   setVal(r,p.dataset.c,b.dataset.v,!p.dataset.ctrl);
   drawIns();
 });
-$("#iOp").addEventListener("change",()=>{const r=curRow(); if(r!==null) setVal(r,COL_OP,$("#iOp").value,false);});
-$("#iNote").addEventListener("change",()=>{const r=curRow(); if(r!==null) setVal(r,COL_NOTE,$("#iNote").value,false);});
+["iOp","iNote"].forEach(id=>$("#"+id).addEventListener("input",()=>{
+  const r=curRow(); if(r!==null) setVal(r,id==="iOp"?COL_OP:COL_NOTE,$("#"+id).value,false);
+}));
 
 /* ============================================================
    Salvataggio: patch dei soli valori dentro l'XML del foglio
@@ -1522,7 +1593,7 @@ async function doSave(auto){
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(a.href),4000);
     }else{ stamp("salvataggio automatico non disponibile su questo browser",true); return false; }
-    S.savedAt=Date.now(); updDirty();
+    S.savedAt=Date.now(); updDirty(); refreshAll();
     stamp(`file ${diretto?"aggiornato":"scaricato"} alle ${new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}`);
     if(!auto) toast(diretto?"Salvato sul file originale":"File scaricato: "+name,5000);
     return true;
