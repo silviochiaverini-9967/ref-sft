@@ -137,11 +137,12 @@ table.reg thead th.gh{z-index:4;height:52px;font-size:8.5px;line-height:10px;let
   vertical-align:middle;white-space:normal;overflow-wrap:break-word;word-break:normal;hyphens:none;position:sticky;top:0}
 table.reg thead th.gh>span{display:block;max-height:46px;overflow:hidden}
 table.reg thead tr.h2 th{top:52px}
-.vh{writing-mode:vertical-rl;transform:rotate(180deg);height:var(--vhh,150px);width:26px;
-  font-weight:600;font-size:10px;line-height:12px;letter-spacing:-.01em;
+.vh{writing-mode:vertical-rl;transform:rotate(180deg);height:var(--vhh,150px);
+  width:fit-content;max-width:26px;margin:0 auto;   /* si stringe alle righe usate e si centra */
+  font-weight:600;font-size:11px;line-height:13px;letter-spacing:-.01em;
   padding:4px 0;white-space:normal;overflow-wrap:break-word;word-break:normal;hyphens:none;overflow:hidden;
-  text-align:left;margin:0 auto}
-table.reg thead tr.h2 th:not(.stickA):not(.stickB){width:28px;min-width:28px;max-width:28px}
+  text-align:left}
+table.reg thead tr.h2 th:not(.stickA):not(.stickB){width:30px;min-width:30px;max-width:30px}
 .stickA{position:sticky;left:0;z-index:5;background:var(--surface2)}
 .stickB{position:sticky;left:86px;z-index:5;background:var(--surface2)}
 th.stickA,td.stickA{width:86px;min-width:86px;max-width:86px}
@@ -151,11 +152,11 @@ td.stickA{border-right:1px solid var(--line)}
 td.stickB{border-right:1px solid var(--line);text-align:center;color:var(--muted)}
 tr.d0 td.stickA,tr.d0 td.stickB{border-top:2px solid var(--line)}
 tr.today td.stickA{box-shadow:inset 3px 0 0 #0b64c0}
-td.cell{width:26px;min-width:26px;max-width:26px;text-align:center;font-weight:700;font-size:11px;cursor:default;height:22px}
+td.cell{width:30px;min-width:30px;max-width:30px;text-align:center;font-weight:700;font-size:11px;cursor:default;height:22px}
 td.cell:hover{outline:1px solid var(--muted);outline-offset:-1px}
 td.cell.edited{box-shadow:inset 0 0 0 2px #0b64c0}
 td.free{width:110px;min-width:110px;max-width:110px;padding:2px 5px;font-size:10px;cursor:default;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-td.ctrl{width:26px;min-width:26px;max-width:26px;text-align:center;font-size:9px;cursor:default;overflow:hidden}
+td.ctrl{width:30px;min-width:30px;max-width:30px;text-align:center;font-size:9px;cursor:default;overflow:hidden}
 .wknd td.stickA{color:#8a3a00}
 /* evidenziazione riga / colonna: agisce sulle cornici, i colori CIP restano intatti */
 /* cornici disegnate con box-shadow: non occupano larghezza, quindi non
@@ -182,7 +183,13 @@ td.stickB:hover{color:var(--sel);background:var(--selbg)}
 @media(max-width:980px){.entry{grid-template-columns:1fr}}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
 .card h3{margin:0 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.erow{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line2)}
+.erow{display:flex;align-items:center;gap:8px;padding:4px 6px;margin:0 -6px;
+  border-bottom:1px solid var(--line2)}
+/* riga toccata in questa sessione: sfondo leggermente più scuro */
+.erow.mod{background:#dfe5ea}
+/* riga sotto il puntatore */
+.erow:hover{background:#d6f2fb}
+.erow.mod:hover{background:#c3e8f5}
 .erow:last-child{border-bottom:0}
 .erow .nm{flex:1;font-size:12.5px;min-width:0}
 .erow .last{font-size:11px;color:var(--muted);white-space:nowrap}
@@ -486,7 +493,7 @@ const GROUPS = [
 const CTRL_FROM="BB", CTRL_TO="BG", COL_OP="BH", COL_NOTE="BI";
 const COL_DATE="B", COL_TURNO="D";
 const ROW0 = 5;
-const VERSIONE = "2026.08.31b";
+const VERSIONE = "2026.09.01f";
 const GG_WARN = 7;              // attenzione: giorni dall'ultimo ciclo
 const GG_OVER = 14;             // fuori soglia: giorni dall'ultimo ciclo
 const GG_SAN  = 30;             // giorni dall'ultimo ciclo con sanitizzante
@@ -1458,6 +1465,20 @@ function avvisoData(){
       +(d<0?` (${-d} giorni fa)`:d>0?` (fra ${d} giorni)`:"");
   }
 }
+/* ultimo ciclo PRECEDENTE al turno che si sta compilando:
+   esclude la riga corrente, altrimenti mostrerebbe ciò che hai appena scritto */
+function cicloPrecedente(col,di,t,tipo){
+  for(let i=di;i>=0;i--){
+    for(let k=(i===di?t-1:2);k>=0;k--){
+      const v=getVal(S.days[i].rows[k],col); if(v==="") continue;
+      const c=cipOf(v);
+      if(tipo!==undefined && c!==tipo) continue;   // cerco quel tipo di ciclo
+      return {cip:c,raw:v,date:S.days[i].date,turno:k,
+              gg:Math.round((S.days[di].date-S.days[i].date)/86400000)};
+    }
+  }
+  return null;
+}
 function drawIns(){
   avvisoData();
   const r=curRow();
@@ -1488,11 +1509,17 @@ function drawIns(){
       html+=`<div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
               margin:10px 0 3px;border-bottom:1px solid var(--line2)">${esc(e.group)}</div>`; }
     const v=getVal(r,e.col), cip=cipOf(v);
-    const {last}=lastWash(e.col);
-    const ago = last ? Math.round((new Date()-last.date)/86400000) : null;
-    html+=`<div class="erow">
+    // con un ciclo selezionato mostro l'ultima volta che è stato fatto QUEL ciclo,
+    // altrimenti l'ultimo ciclo di qualsiasi tipo
+    const tipoSel = typeof cip==="number" ? cip : undefined;
+    const pr = cicloPrecedente(e.col, S.rowDay[r][0], S.rowDay[r][1], tipoSel);
+    const quando = pr ? (pr.gg===0?"stessa giornata":pr.gg===1?"1 giorno prima":pr.gg+" giorni prima") : "";
+    const scaduto = !pr || pr.gg>=GG_OVER;
+    html+=`<div class="erow${S.edits.has(e.col+r)?" mod":""}">
       <div class="nm">${esc(e.name)}</div>
-      <div class="last">${last?`ultimo ${CIP[last.cip]?CIP[last.cip].n:"?"} · ${ddmm(last.date)} · ${ago} gg`:"mai"}</div>
+      <div class="last" style="${scaduto?"color:var(--alert);font-weight:600":""}">${
+        pr ? `${tipoSel?"ultimo "+CIP[tipoSel].n:"precedente "+(CIP[pr.cip]?CIP[pr.cip].n:"valore "+esc(pr.raw))} · ${ddmm(pr.date)} · ${quando}`
+           : (tipoSel?`${CIP[tipoSel].n} mai eseguito prima`:"nessun ciclo precedente")}</div>
       <div class="picker" data-c="${e.col}">
         ${[1,2,3,4,5].map(k=>`<button class="pk" data-v="${k}" aria-pressed="${cip===k}"
           style="${cip===k?`background:${CIP[k].c};color:${CIP[k].t}`:""}">${k}</button>`).join("")}
@@ -1503,7 +1530,7 @@ function drawIns(){
 
   $("#iCtrl").innerHTML=S.ctrls.map(c=>{
     const v=(getVal(r,c.col)||"").toUpperCase();
-    return `<div class="erow"><div class="nm" title="${esc(c.name)}">${esc(c.short)}</div>
+    return `<div class="erow${S.edits.has(c.col+r)?" mod":""}"><div class="nm" title="${esc(c.name)}">${esc(c.short)}</div>
       <div class="picker" data-c="${c.col}" data-ctrl="1">
         <button class="pk" data-v="OK" aria-pressed="${v==="OK"}" style="${v==="OK"?"background:#1b6b3a;color:#fff":""}">OK</button>
         <button class="pk" data-v="NON OK" aria-pressed="${v==="NON OK"}" style="width:auto;padding:0 6px;${v==="NON OK"?"background:var(--alert);color:#fff":""}">NO</button>
